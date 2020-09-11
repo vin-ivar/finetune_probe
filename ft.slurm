@@ -21,6 +21,6 @@ elif [[ $1 == "ud" ]]; then
 fi
 
 python3 runner.py --train "$UD/$2/$2-ud-$train.conllu" --val "$UD/$2/$2-ud-$dev.conllu" \
-                  --config "./configs/gpu.jsonnet" --save "experiments/models/$1.$2.$3" --model "bert" \
-                  --param_save "experiments/models/$1.$2.$3.lca" --param_freeze $3
-rm -rf ./experiments/models/$1.$2.$3
+                  --config "./configs/gpu.jsonnet" --save "experiments/models/$1.$2.$3.underparam" --model "bert" \
+                  --param_save "experiments/models/$1.$2.$3.underparam.lca" --param_freeze $3
+rm -rf ./experiments/models/$1.$2.$3.underparam
