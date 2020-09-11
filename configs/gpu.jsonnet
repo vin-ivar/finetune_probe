@@ -26,12 +26,11 @@
         },
       },
       "encoder": {
-        "type": "stacked_bidirectional_lstm",
-        "input_size": std.parseInt(std.extVar("model_size")),
-        "hidden_size": 400,
-        "num_layers": 3,
-        "recurrent_dropout_probability": 0.3,
-        "use_highway": true
+        "type": "feedforward",
+        "input_dim": std.parseInt(std.extVar("model_size")),
+        "num_layers": 1,
+        "hidden_dims": 400,
+        "activations": "relu",
       },
       "use_mst_decoding_for_validation": false,
       "arc_representation_dim": 500,

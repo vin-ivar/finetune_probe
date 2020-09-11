@@ -79,7 +79,7 @@ class BiaffineDependencyParser(Model):
         vocab: Vocabulary,
         freezer: str,
         text_field_embedder: TextFieldEmbedder,
-        encoder: Seq2SeqEncoder,
+        encoder: FeedForward,
         tag_representation_dim: int,
         arc_representation_dim: int,
         tag_feedforward: FeedForward = None,
@@ -370,7 +370,7 @@ class BiaffineDependencyParser(Model):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 
         embedded_text_input = self._input_dropout(embedded_text_input)
-        encoded_text = self.encoder(embedded_text_input, mask)
+        encoded_text = self.encoder(embedded_text_input)
 
         batch_size, _, encoding_dim = encoded_text.size()
 
