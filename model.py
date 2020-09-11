@@ -1,30 +1,28 @@
-from typing import Dict, Tuple, Any, List
-import logging
 import copy
+import logging
+from typing import Dict, Tuple, Any, List
 
-from overrides import overrides
+import numpy
 import torch
 import torch.nn.functional as F
-from torch.nn.modules import Dropout
-import numpy
-
+import transformers
 from allennlp.common.checks import check_dimensions_match, ConfigurationError
 from allennlp.data import TextFieldTensors, Vocabulary
+from allennlp.models.model import Model
+from allennlp.modules import FeedForward
 from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder, Embedding, InputVariationalDropout
 from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
-from allennlp.modules import FeedForward
-from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, Activation
-from allennlp.nn.util import get_text_field_mask, get_range_vector
+from allennlp.nn.chu_liu_edmonds import decode_mst
 from allennlp.nn.util import (
     get_device_of,
     masked_log_softmax,
     get_lengths_from_binary_sequence_mask,
 )
-from allennlp.nn.chu_liu_edmonds import decode_mst
+from allennlp.nn.util import get_range_vector
 from allennlp.training.metrics import AttachmentScores
-
-import transformers
+from overrides import overrides
+from torch.nn.modules import Dropout
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +77,7 @@ class BiaffineDependencyParser(Model):
     def __init__(
         self,
         vocab: Vocabulary,
+        freezer: str,
         text_field_embedder: TextFieldEmbedder,
         encoder: Seq2SeqEncoder,
         tag_representation_dim: int,
@@ -95,8 +94,21 @@ class BiaffineDependencyParser(Model):
         super().__init__(vocab, **kwargs)
 
         self.text_field_embedder = text_field_embedder
-        # self.text_field_embedder.requires_grad_(False)
+        self.num_heads = 12
         self.encoder = encoder
+
+        params_to_freeze = []
+        if freezer == 'kq':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'key' in k or 'query' in k]
+
+        if freezer == 'v':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'value' in k]
+
+        for k, v in params_to_freeze:
+            logger.info(f'Freezing {k}')
+            v.requires_grad_(False)
 
         encoder_dim = encoder.get_output_dim()
 
@@ -124,6 +136,9 @@ class BiaffineDependencyParser(Model):
         self._dropout = InputVariationalDropout(dropout)
         self._input_dropout = Dropout(input_dropout)
         self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, encoder.get_output_dim()]))
+
+        self._saved_params = {i: torch.zeros_like(j.data) for (i, j) in self.named_parameters() if j.requires_grad}
+        self._params_to_log = {}
 
         representation_dim = text_field_embedder.get_output_dim()
         if pos_tag_embedding is not None:
@@ -244,7 +259,40 @@ class BiaffineDependencyParser(Model):
         mask : `torch.BoolTensor`
             A mask denoting the padded elements in the batch.
         """
-        # head_tags = None
+
+        # [ LCA ]
+        lca = {}
+        for k, v in self.named_parameters():
+            # mandatory
+            if not v.requires_grad or type(v.grad) == type(None):
+                continue
+
+            lca[k] = (v.data - self._saved_params[k]) * v.grad
+
+        self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
+
+        for k, v in lca.items():
+            # if not k.startswith('text_field_embedder') or 'layer' not in k:
+                # continue
+
+            if 'LayerNorm' in k or 'bias' in k:
+                continue
+
+            # k_path = '.'.join(k.split('.')[5:])
+            if 'query' in k or 'key' in k or 'value' in k:
+                embed_size = v.size(0) // self.num_heads
+                v = v.view(self.num_heads, embed_size, -1)
+                for n in range(self.num_heads):
+                    self._params_to_log.setdefault(k + f'_mean.head_{n}', []).append(v[n].mean().item())
+                    self._params_to_log.setdefault(k + f'_sum.head_{n}', []).append(v[n].sum().item())
+                    self._params_to_log.setdefault(k + f'_numel.head_{n}', []).append(v[n].numel())
+                # continue
+
+            self._params_to_log.setdefault(k + '_mean', []).append(v.mean().item())
+            self._params_to_log.setdefault(k + '_sum', []).append(v.sum().item())
+            self._params_to_log.setdefault(k + '_numel', []).append(v.numel())
+        # [ /LCA ]
+
         embedded_text_input = self.text_field_embedder(words)
         embedded_text_input = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
 

@@ -16,6 +16,7 @@
     "validation_data_path": std.extVar("val_path"),
     "model": {
       "type": "wordpiece_parser",
+      "freezer": std.extVar("param_freeze"),
       "text_field_embedder": {
         "token_embedders": {
           "tokens": {
@@ -27,14 +28,14 @@
       "encoder": {
         "type": "stacked_bidirectional_lstm",
         "input_size": std.parseInt(std.extVar("model_size")),
-        "hidden_size": 400,
-        "num_layers": 3,
+        "hidden_size": 4,
+        "num_layers": 1,
         "recurrent_dropout_probability": 0.3,
         "use_highway": true
       },
       "use_mst_decoding_for_validation": false,
-      "arc_representation_dim": 500,
-      "tag_representation_dim": 100,
+      "arc_representation_dim": 5,
+      "tag_representation_dim": 1,
       "dropout": 0.3,
       "input_dropout": 0.3,
       "initializer": {
@@ -54,18 +55,17 @@
       "batch_sampler": {
         "type": "bucket",
         "sorting_keys": ["words"],
-        "batch_size" : 4
+        "batch_size" : 32
       },
     },
     "trainer": {
-      "num_epochs": 20,
+      "num_epochs": 1,
       "grad_norm": 5.0,
       "patience": 20,
-      "cuda_device": 0,
+      "cuda_device": -1,
       "validation_metric": "+LAS",
       "optimizer": {
         "type": "dense_sparse_adam",
-     	"lr": 3e-5,
         "betas": [0.9, 0.9]
       }
     }
