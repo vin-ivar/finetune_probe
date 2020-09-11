@@ -26,7 +26,6 @@
         },
       },
       "encoder": {
-        "type": "feedforward",
         "input_dim": std.parseInt(std.extVar("model_size")),
         "num_layers": 1,
         "hidden_dims": 400,
