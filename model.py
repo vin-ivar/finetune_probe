@@ -283,14 +283,12 @@ class BiaffineDependencyParser(Model):
                 embed_size = v.size(0) // self.num_heads
                 v = v.view(self.num_heads, embed_size, -1)
                 for n in range(self.num_heads):
-                    self._params_to_log.setdefault(k + f'_mean.head_{n}', []).append(v[n].mean().item())
-                    self._params_to_log.setdefault(k + f'_sum.head_{n}', []).append(v[n].sum().item())
-                    self._params_to_log.setdefault(k + f'_numel.head_{n}', []).append(v[n].numel())
+                    mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
+                    self._params_to_log.setdefault(k + f'_head_{n}', []).append((mean, sum, numel))
                 # continue
 
-            self._params_to_log.setdefault(k + '_mean', []).append(v.mean().item())
-            self._params_to_log.setdefault(k + '_sum', []).append(v.sum().item())
-            self._params_to_log.setdefault(k + '_numel', []).append(v.numel())
+            mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
+            self._params_to_log.setdefault(k, []).append((mean, sum, numel))
         # [ /LCA ]
 
         embedded_text_input = self.text_field_embedder(words)
