@@ -3,7 +3,7 @@
 #SBATCH --partition=accel
 #SBATCH --gres=gpu:1
 #SBATCH --time=100:00:00
-#SBATCH --mem-per-cpu=10G
+#SBATCH --mem-per-cpu=16G
 
 set -o errexit
 source ~/.bashrc
