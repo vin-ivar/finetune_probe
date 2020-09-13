@@ -78,6 +78,7 @@ class BiaffineDependencyParser(Model):
         self,
         vocab: Vocabulary,
         freezer: str,
+        lca: bool,
         text_field_embedder: TextFieldEmbedder,
         encoder: FeedForward,
         tag_representation_dim: int,
@@ -96,6 +97,7 @@ class BiaffineDependencyParser(Model):
         self.text_field_embedder = text_field_embedder
         self.num_heads = 12
         self.encoder = encoder
+        self.lca = lca
 
         params_to_freeze = []
         if freezer == 'kq':
@@ -264,36 +266,37 @@ class BiaffineDependencyParser(Model):
             A mask denoting the padded elements in the batch.
         """
 
-        # [ LCA ]
-        lca = {}
-        for k, v in self.named_parameters():
-            # mandatory
-            if not v.requires_grad or type(v.grad) == type(None):
-                continue
+        if self.lca:
+            # [ LCA ]
+            lca = {}
+            for k, v in self.named_parameters():
+                # mandatory
+                if not v.requires_grad or type(v.grad) == type(None):
+                    continue
 
-            lca[k] = (v.data - self._saved_params[k]) * v.grad
+                lca[k] = (v.data - self._saved_params[k]) * v.grad
 
-        self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
+            self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
 
-        for k, v in lca.items():
-            # if not k.startswith('text_field_embedder') or 'layer' not in k:
-                # continue
+            for k, v in lca.items():
+                # if not k.startswith('text_field_embedder') or 'layer' not in k:
+                    # continue
 
-            if 'LayerNorm' in k or 'bias' in k:
-                continue
+                if 'LayerNorm' in k or 'bias' in k:
+                    continue
 
-            # k_path = '.'.join(k.split('.')[5:])
-            if 'query' in k or 'key' in k or 'value' in k:
-                embed_size = v.size(0) // self.num_heads
-                v = v.view(self.num_heads, embed_size, -1)
-                for n in range(self.num_heads):
-                    mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-                    # self._params_to_log.setdefault(k + f'_head_{n}', []).append((mean, sum, numel))
-                # continue
+                # k_path = '.'.join(k.split('.')[5:])
+                if 'query' in k or 'key' in k or 'value' in k:
+                    embed_size = v.size(0) // self.num_heads
+                    v = v.view(self.num_heads, embed_size, -1)
+                    for n in range(self.num_heads):
+                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
+                        self._params_to_log.setdefault(k + f'_head_{n}', []).append((mean, sum, numel))
+                    # continue
 
-            mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
-            # self._params_to_log.setdefault(k, []).append((mean, sum, numel))
-        # [ /LCA ]
+                mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
+                self._params_to_log.setdefault(k, []).append((mean, sum, numel))
+            # [ /LCA ]
 
         embedded_text_input = self.text_field_embedder(words)
         embedded_text_input = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
