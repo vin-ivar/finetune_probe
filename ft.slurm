@@ -22,5 +22,5 @@ fi
 
 python3 runner.py --train "$UD/$2/$2-ud-$train.conllu" --val "$UD/$2/$2-ud-$dev.conllu" \
                   --config "./configs/gpu.jsonnet" --save "experiments/models/$1.$2.$3.underparam" --model "bert" \
-                  --param_save "experiments/models/$1.$2.$3.underparam.lca" --param_freeze $3
+                  --param_save "experiments/models/$1.$2.$3.underparam.lca" --param_freeze $3 --lca $4
 rm -rf ./experiments/models/$1.$2.$3.underparam
