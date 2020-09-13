@@ -106,6 +106,10 @@ class BiaffineDependencyParser(Model):
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'value' in k]
 
+        if freezer == 'boss':
+            params_to_freeze = [(k.split('.')[-3], v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if k.split('.')[-4] != 'attention']
+
         for k, v in params_to_freeze:
             logger.info(f'Freezing {k}')
             v.requires_grad_(False)
@@ -284,11 +288,11 @@ class BiaffineDependencyParser(Model):
                 v = v.view(self.num_heads, embed_size, -1)
                 for n in range(self.num_heads):
                     mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-                    self._params_to_log.setdefault(k + f'_head_{n}', []).append((mean, sum, numel))
+                    # self._params_to_log.setdefault(k + f'_head_{n}', []).append((mean, sum, numel))
                 # continue
 
             mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
-            self._params_to_log.setdefault(k, []).append((mean, sum, numel))
+            # self._params_to_log.setdefault(k, []).append((mean, sum, numel))
         # [ /LCA ]
 
         embedded_text_input = self.text_field_embedder(words)
