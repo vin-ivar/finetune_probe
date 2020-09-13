@@ -26,7 +26,7 @@ def main():
     parser.add_argument('--save', action='store', default='experiments/models/default')
     parser.add_argument('--param_save', action='store')
     parser.add_argument('--param_freeze', action='store')
-    parser.add_argument('--lca', action='store', type=bool)
+    parser.add_argument('--lca', action='store', type=str)
     args = parser.parse_args()
 
     import_module_and_submodules("model")
