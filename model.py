@@ -97,26 +97,6 @@ class BiaffineDependencyParser(Model):
         self.num_heads = 12
         self.lca = lca
 
-        params_to_freeze = []
-        if freezer == 'kq':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' in k or 'query' in k]
-
-        if freezer == 'v':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'value' in k]
-
-        if freezer == 'boss':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
-                                and k.split('.')[-4] != 'attention']
-
-        if freezer == 'enc':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
-
-        for k, v in params_to_freeze:
-            logger.info(f'Freezing {k}')
-            v.requires_grad_(False)
 
         encoder_dim = text_field_embedder.get_output_dim()
 
@@ -179,6 +159,33 @@ class BiaffineDependencyParser(Model):
 
         self._attachment_scores = AttachmentScores()
         initializer(self)
+
+        params_to_freeze = []
+        if freezer == 'kq':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'key' in k or 'query' in k]
+
+        if freezer == 'v':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'value' in k]
+
+        if freezer == 'boss':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
+                                and k.split('.')[-4] != 'attention']
+
+        if freezer == 'enc':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
+
+        if freezer == 'net':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
+
+        if freezer == 'debug':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k != '_head_sentinel']
+
+        for k, v in params_to_freeze:
+            logger.info(f'Freezing {k}')
+            v.requires_grad_(False)
 
     @overrides
     def extend_embedder_vocab(self, embedding_sources_mapping: Dict[str, str] = None) -> None:
