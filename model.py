@@ -80,7 +80,6 @@ class BiaffineDependencyParser(Model):
         freezer: str,
         lca: bool,
         text_field_embedder: TextFieldEmbedder,
-        encoder: FeedForward,
         tag_representation_dim: int,
         arc_representation_dim: int,
         tag_feedforward: FeedForward = None,
@@ -96,7 +95,6 @@ class BiaffineDependencyParser(Model):
 
         self.text_field_embedder = text_field_embedder
         self.num_heads = 12
-        self.encoder = encoder
         self.lca = lca
 
         params_to_freeze = []
@@ -109,14 +107,18 @@ class BiaffineDependencyParser(Model):
                                 if 'value' in k]
 
         if freezer == 'boss':
-            params_to_freeze = [(k.split('.')[-3], v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if k.split('.')[-4] != 'attention']
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
+                                and k.split('.')[-4] != 'attention']
+
+        if freezer == 'enc':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
         for k, v in params_to_freeze:
             logger.info(f'Freezing {k}')
             v.requires_grad_(False)
 
-        encoder_dim = encoder.get_output_dim()
+        encoder_dim = text_field_embedder.get_output_dim()
 
         self.head_arc_feedforward = arc_feedforward or FeedForward(
             encoder_dim, 1, arc_representation_dim, Activation.by_name("elu")()
@@ -141,7 +143,7 @@ class BiaffineDependencyParser(Model):
         self._pos_tag_embedding = pos_tag_embedding or None
         self._dropout = InputVariationalDropout(dropout)
         self._input_dropout = Dropout(input_dropout)
-        self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, encoder.get_output_dim()]))
+        self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, text_field_embedder.get_output_dim()]))
 
         self._saved_params = {i: torch.zeros_like(j.data) for (i, j) in self.named_parameters() if j.requires_grad}
         self._params_to_log = {}
@@ -149,13 +151,6 @@ class BiaffineDependencyParser(Model):
         representation_dim = text_field_embedder.get_output_dim()
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
-
-        check_dimensions_match(
-            representation_dim,
-            encoder.get_input_dim(),
-            "text field embedding dim",
-            "encoder input dim",
-        )
 
         check_dimensions_match(
             tag_representation_dim,
@@ -374,8 +369,8 @@ class BiaffineDependencyParser(Model):
         head_indices: torch.LongTensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 
-        embedded_text_input = self._input_dropout(embedded_text_input)
-        encoded_text = self.encoder(embedded_text_input)
+        encoded_text = self._input_dropout(embedded_text_input)
+        # encoded_text = self.encoder(embedded_text_input)
 
         batch_size, _, encoding_dim = encoded_text.size()
 

@@ -26,12 +26,6 @@
           },
         },
       },
-      "encoder": {
-        "input_dim": std.parseInt(std.extVar("model_size")),
-        "num_layers": 1,
-        "hidden_dims": 400,
-        "activations": "relu",
-      },
       "use_mst_decoding_for_validation": false,
       "arc_representation_dim": 5,
       "tag_representation_dim": 1,
