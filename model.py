@@ -23,6 +23,7 @@ from allennlp.nn.util import get_range_vector
 from allennlp.training.metrics import AttachmentScores
 from overrides import overrides
 from torch.nn.modules import Dropout
+from torch.utils import tensorboard
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +78,8 @@ class BiaffineDependencyParser(Model):
     def __init__(
         self,
         vocab: Vocabulary,
-        freezer: str,
-        lca: bool,
+        freeze: str,
+        lca: str,
         text_field_embedder: TextFieldEmbedder,
         tag_representation_dim: int,
         arc_representation_dim: int,
@@ -97,6 +98,9 @@ class BiaffineDependencyParser(Model):
         self.num_heads = 12
         self.lca = lca
 
+        self.step_counter = 0
+        if lca != '':
+            self.writer = tensorboard.SummaryWriter(lca)
 
         encoder_dim = text_field_embedder.get_output_dim()
 
@@ -126,7 +130,7 @@ class BiaffineDependencyParser(Model):
         self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, text_field_embedder.get_output_dim()]))
 
         self._saved_params = {i: torch.zeros_like(j.data) for (i, j) in self.named_parameters() if j.requires_grad}
-        self._params_to_log = {}
+        # self._params_to_log = {}
 
         representation_dim = text_field_embedder.get_output_dim()
         if pos_tag_embedding is not None:
@@ -161,26 +165,26 @@ class BiaffineDependencyParser(Model):
         initializer(self)
 
         params_to_freeze = []
-        if freezer == 'kq':
+        if freeze == 'kq':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' in k or 'query' in k]
 
-        if freezer == 'v':
+        if freeze == 'v':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'value' in k]
 
-        if freezer == 'boss':
+        if freeze == 'boss':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
                                 and k.split('.')[-4] != 'attention']
 
-        if freezer == 'enc':
+        if freeze == 'enc':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
-        if freezer == 'net':
+        if freeze == 'net':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
 
-        if freezer == 'debug':
+        if freeze == 'debug':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k != '_head_sentinel']
 
         for k, v in params_to_freeze:
@@ -268,7 +272,7 @@ class BiaffineDependencyParser(Model):
             A mask denoting the padded elements in the batch.
         """
 
-        if self.lca:
+        if self.lca != '':
             # [ LCA ]
             lca = {}
             for k, v in self.named_parameters():
@@ -293,11 +297,17 @@ class BiaffineDependencyParser(Model):
                     v = v.view(self.num_heads, embed_size, -1)
                     for n in range(self.num_heads):
                         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-                        self._params_to_log.setdefault(k + f'_head_{n}', []).append((mean, sum, numel))
+                        self.writer.add_scalar(k + f'_head_{n}/mean', mean, self.step_counter)
+                        self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
+                        self.writer.add_scalar(k + f'_head_{n}/numel', numel, self.step_counter)
                     # continue
 
                 mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
-                self._params_to_log.setdefault(k, []).append((mean, sum, numel))
+                self.writer.add_scalar(f'{k}/mean', mean, self.step_counter)
+                self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
+                self.writer.add_scalar(f'{k}/numel', numel, self.step_counter)
+
+            self.step_counter += 1
             # [ /LCA ]
 
         embedded_text_input = self.text_field_embedder(words)

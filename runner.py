@@ -24,8 +24,7 @@ def main():
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--config', action='store', default='configs/cpu')
     parser.add_argument('--save', action='store', default='experiments/models/default')
-    parser.add_argument('--param_save', action='store')
-    parser.add_argument('--param_freeze', action='store')
+    parser.add_argument('--freeze', action='store', type=str)
     parser.add_argument('--lca', action='store', type=str)
     args = parser.parse_args()
 
@@ -40,12 +39,8 @@ def main():
                                                      'val_path': args.val,
                                                      'model_name': model_name,
                                                      'model_size': size,
-                                                     'param_freeze': args.param_freeze,
-                                                     'lca': args.lca})
+                                                     'lca': args.lca,
+                                                     'freeze': args.freeze})
     model = train_model(config, args.save, force=True)
-    if args.param_save:
-        with open(args.param_save, 'wb') as f:
-            pickle.dump(model._params_to_log, f)
-
 
 main()

@@ -16,8 +16,8 @@
     "validation_data_path": std.extVar("val_path"),
     "model": {
       "type": "wordpiece_parser",
-      "lca": std.parseInt(std.extVar("lca")),
-      "freezer": std.extVar("param_freeze"),
+      "lca": std.extVar("lca"),
+      "freeze": std.extVar("freeze"),
       "text_field_embedder": {
         "token_embedders": {
           "tokens": {
