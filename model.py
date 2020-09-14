@@ -288,6 +288,9 @@ class BiaffineDependencyParser(Model):
                 # if not k.startswith('text_field_embedder') or 'layer' not in k:
                     # continue
 
+                if v.mean().item() == 0:
+                    continue
+
                 if 'LayerNorm' in k or 'bias' in k:
                     continue
 
