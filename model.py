@@ -274,42 +274,51 @@ class BiaffineDependencyParser(Model):
 
         if self.lca != '':
             # [ LCA ]
-            lca = {}
+            totals = {i: 0 for i in ['embeddings', 'attention', 'intermediate', 'output',
+                                     'key', 'query', 'value', 'other']}
             for k, v in self.named_parameters():
                 # mandatory
                 if not v.requires_grad or type(v.grad) == type(None):
                     continue
 
-                lca[k] = (v.data * 10e6 - self._saved_params[k]) * v.grad
-
-            self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
-
-            for k, v in lca.items():
-                # if not k.startswith('text_field_embedder') or 'layer' not in k:
-                    # continue
-
-                if v.mean().item() == 0:
-                    continue
-
                 if 'LayerNorm' in k or 'bias' in k:
                     continue
 
-                # k_path = '.'.join(k.split('.')[5:])
-                if 'query' in k or 'key' in k or 'value' in k:
-                    embed_size = v.size(0) // self.num_heads
-                    v = v.view(self.num_heads, embed_size, -1)
-                    for n in range(self.num_heads):
-                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-                        self.writer.add_scalar(k + f'_head_{n}/mean', mean, self.step_counter)
-                        self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
-                        self.writer.add_scalar(k + f'_head_{n}/numel', numel, self.step_counter)
-                    # continue
+                score = (v.data * 10e6 - self._saved_params[k]) * v.grad
+                path = k.split(".")
+                component = ""
 
-                mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
-                self.writer.add_scalar(f'{k}/mean', mean, self.step_counter)
-                self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
-                self.writer.add_scalar(f'{k}/numel', numel, self.step_counter)
+                if path[0] == 'encoder':
+                    component = 'encoder'
 
+                elif path[0] == 'text_field_embedder':
+                    if 'embeddings' in path:
+                        component = 'embeddings'
+
+                    elif 'dense' in path:
+                        if 'attention' in path:
+                            component = path[-4]
+                        else:
+                            component = path[-3]
+                    else:
+                        component = path[-2]
+                else:
+                    component = 'other'
+
+                # if 'query' in k or 'key' in k or 'value' in k:
+                #     embed_size = v.size(0) // self.num_heads
+                #     v = v.view(self.num_heads, embed_size, -1)
+                #     for n in range(self.num_heads):
+                #         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
+                #         self.writer.add_scalar(k + f'_head_{n}', sum, self.step_counter)
+
+                sum = v.sum().item()
+                totals[component] += sum
+
+            for k, v in totals.items():
+                self.writer.add_scalar(f'{k}', v, self.step_counter)
+
+            self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
             self.step_counter += 1
             # [ /LCA ]
 
