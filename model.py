@@ -280,7 +280,7 @@ class BiaffineDependencyParser(Model):
                 if not v.requires_grad or type(v.grad) == type(None):
                     continue
 
-                lca[k] = (v.data - self._saved_params[k]) * v.grad
+                lca[k] = (v.data * 10e6 - self._saved_params[k]) * v.grad
 
             self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
 
