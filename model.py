@@ -184,6 +184,9 @@ class BiaffineDependencyParser(Model):
         if freeze == 'net':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
 
+        if freeze == 'embed':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if 'embeddings' in k]
+
         if freeze == 'debug':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k != '_head_sentinel']
 
