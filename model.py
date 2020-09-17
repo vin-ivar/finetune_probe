@@ -315,7 +315,7 @@ class BiaffineDependencyParser(Model):
                 #         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
                 #         self.writer.add_scalar(k + f'_head_{n}', sum, self.step_counter)
 
-                sum = v.sum().item()
+                sum = score.sum().item()
                 totals[component] += sum
 
             for k, v in totals.items():
