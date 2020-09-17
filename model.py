@@ -287,7 +287,7 @@ class BiaffineDependencyParser(Model):
                 if 'LayerNorm' in k or 'bias' in k:
                     continue
 
-                score = (v.data * 10e6 - self._saved_params[k]) * v.grad
+                score = (v.data * 10e6 - self._saved_params[k] * 10e6) * v.grad
                 path = k.split(".")
                 component = ""
 
