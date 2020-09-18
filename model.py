@@ -288,9 +288,6 @@ class BiaffineDependencyParser(Model):
             self._saved_params = {k: v.data.clone() for k, v in self.named_parameters() if v.requires_grad}
 
             for k, v in lca.items():
-                # if not k.startswith('text_field_embedder') or 'layer' not in k:
-                    # continue
-
                 if v.mean().item() == 0:
                     continue
 
