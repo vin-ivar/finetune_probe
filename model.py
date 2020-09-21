@@ -311,6 +311,7 @@ class BiaffineDependencyParser(Model):
                 self.writer.add_scalar(f'{k}/numel', numel, self.step_counter)
 
             self.step_counter += 1
+            print(self.step_counter)
             # [ /LCA ]
 
         embedded_text_input = self.text_field_embedder(words)
