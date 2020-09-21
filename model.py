@@ -310,9 +310,9 @@ class BiaffineDependencyParser(Model):
                 self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
                 self.writer.add_scalar(f'{k}/numel', numel, self.step_counter)
 
+            self.step_counter += 1
             # [ /LCA ]
 
-        self.step_counter += 1
         logger.info(str(self.step_counter))
         embedded_text_input = self.text_field_embedder(words)
         embedded_text_input = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
