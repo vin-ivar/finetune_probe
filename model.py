@@ -291,7 +291,7 @@ class BiaffineDependencyParser(Model):
                 if v.mean().item() == 0:
                     continue
 
-                if 'LayerNorm' in k or 'bias' in k:
+                if 'LayerNorm' in k:
                     continue
 
                 # k_path = '.'.join(k.split('.')[5:])
@@ -311,7 +311,6 @@ class BiaffineDependencyParser(Model):
                 self.writer.add_scalar(f'{k}/numel', numel, self.step_counter)
 
             self.step_counter += 1
-            logger.info(str(self.step_counter))
             # [ /LCA ]
 
         embedded_text_input = self.text_field_embedder(words)
