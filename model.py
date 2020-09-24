@@ -129,8 +129,7 @@ class BiaffineDependencyParser(Model):
         self._input_dropout = Dropout(input_dropout)
         self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, text_field_embedder.get_output_dim()]))
 
-        self._saved_params = {i: torch.zeros_like(j.data).detach().cpu().numpy()
-                              for (i, j) in self.named_parameters() if j.requires_grad}
+        self._saved_params = {i: torch.zeros_like(j.data).detach().cpu() for (i, j) in self.named_parameters() if j.requires_grad}
         # self._params_to_log = {}
 
         representation_dim = text_field_embedder.get_output_dim()
@@ -226,9 +225,9 @@ class BiaffineDependencyParser(Model):
                     continue
 
                 # print(v.device, v.data.device, self._saved_params[k].device, v.grad.device, sep="\t")
-                lca[k] = (v.data.detach().cpu().numpy() - self._saved_params[k]) * v.grad.detach().cpu().numpy()
+                lca[k] = (v.data.detach().cpu() - self._saved_params[k]) * v.grad.detach().cpu()
 
-            self._saved_params = {k: v.data.detach().cpu().numpy() for k, v in self.named_parameters() if v.requires_grad}
+            self._saved_params = {k: v.data.detach().cpu() for k, v in self.named_parameters() if v.requires_grad}
 
             for k, v in lca.items():
                 if v.mean().item() == 0:
@@ -241,11 +240,11 @@ class BiaffineDependencyParser(Model):
                     embed_size = v.size(0) // self.num_heads
                     v = v.view(self.num_heads, embed_size, -1)
                     for n in range(self.num_heads):
-                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].size
+                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
                         self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
                     # continue
 
-                mean, sum, numel = v.mean().item(), v.sum().item(), v.size
+                mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
                 self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
 
             self.step_counter += 1
