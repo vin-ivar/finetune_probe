@@ -129,7 +129,7 @@ class BiaffineDependencyParser(Model):
         self._input_dropout = Dropout(input_dropout)
         self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, text_field_embedder.get_output_dim()]))
 
-        self._saved_params = {i: torch.zeros_like(j.data).detach().cpu() for (i, j) in self.named_parameters() if j.requires_grad}
+        self._saved_params = {}
         # self._params_to_log = {}
 
         representation_dim = text_field_embedder.get_output_dim()
@@ -218,37 +218,26 @@ class BiaffineDependencyParser(Model):
         return layer
 
     def log_lca(self):
-        if self.lca:
-            lca = {}
-            for k, v in self.named_parameters():
-                if not v.requires_grad or type(v.grad) == type(None):
-                    continue
+        for k, v in self._saved_params.items():
+            param_dict = dict(self.named_parameters())
+            lca = (param_dict[k] - v) * param_dict[k].grad
 
-                # print(v.device, v.data.device, self._saved_params[k].device, v.grad.device, sep="\t")
-                lca[k] = (v.data.detach().cpu() - self._saved_params[k]) * v.grad.detach().cpu()
+            if lca.mean().item() == 0:
+                continue
 
-            self._saved_params = {k: v.data.detach().cpu() for k, v in self.named_parameters() if v.requires_grad}
+            mean, sum, numel = lca.mean().item(), lca.sum().item(), lca.numel()
+            self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
 
-            for k, v in lca.items():
-                if v.mean().item() == 0:
-                    continue
+        self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
+                              if v.requires_grad and 'LayerNorm' not in k and 'bias' not in k}
+        self.step_counter += 1
 
-                if 'LayerNorm' in k:
-                    continue
-
-                if 'query' in k or 'key' in k or 'value' in k:
-                    embed_size = v.size(0) // self.num_heads
-                    v = v.view(self.num_heads, embed_size, -1)
-                    for n in range(self.num_heads):
-                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-                        self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
-                    # continue
-
-                mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
-                self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
-
-            self.step_counter += 1
-            # [ /LCA ]
+        # if 'query' in k or 'key' in k or 'value' in k:
+        #     embed_size = lca.size(0) // self.num_heads
+        #     current = lca.view(self.num_heads, embed_size, -1)
+        #     for n in range(self.num_heads):
+        #         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
+        #         self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
 
     @overrides
     def forward(
