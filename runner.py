@@ -13,7 +13,6 @@ from allennlp.training import util as training_util
 from allennlp.common import util as common_util
 from allennlp.training.metric_tracker import MetricTracker
 
-from lca import log_lca
 
 import tensorboard
 import torch
