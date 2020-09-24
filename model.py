@@ -225,9 +225,9 @@ class BiaffineDependencyParser(Model):
                     continue
 
                 # print(v.device, v.data.device, self._saved_params[k].device, v.grad.device, sep="\t")
-                lca[k] = (v.data - self._saved_params[k]) * v.grad
+                lca[k] = (v.data.detach().cpu().numpy() - self._saved_params[k]) * v.grad.detach().cpu().numpy()
 
-            self._saved_params = {k: v.data.detach() for k, v in self.named_parameters() if v.requires_grad}
+            self._saved_params = {k: v.data.detach().cpu().numpy() for k, v in self.named_parameters() if v.requires_grad}
 
             for k, v in lca.items():
                 if v.mean().item() == 0:
