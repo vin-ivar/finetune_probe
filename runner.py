@@ -13,6 +13,9 @@ from allennlp.training import util as training_util
 from allennlp.common import util as common_util
 from allennlp.training.metric_tracker import MetricTracker
 
+from lca import log_lca
+
+import tensorboard
 import torch
 import tqdm
 import json
@@ -69,6 +72,7 @@ def main():
                                   data_loader=train_loader, validation_data_loader=val_loader)
     optimizer = trainer.optimizer
     cuda_device = trainer.cuda_device
+
     if cuda_device != -1:
         model.cuda(cuda_device)
 
@@ -86,6 +90,8 @@ def main():
             loss = output_dict['loss']
             loss.backward()
             optimizer.step()
+
+            model.log_lca()
 
             train_loss += loss.item()
             batches_this_epoch += 1
@@ -106,7 +112,7 @@ def main():
                 batches_this_epoch += 1
 
             val_metrics = training_util.get_metrics(model, val_loss, val_loss, batches_this_epoch,
-                                                    reset=True, cuda_device=[cuda_device])
+                                                    reset=False, cuda_device=[cuda_device])
 
         trainer._metric_tracker.add_metric(val_metrics[trainer._validation_metric])
         metrics['epoch'] = epoch

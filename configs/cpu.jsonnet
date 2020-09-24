@@ -58,9 +58,8 @@
       "cuda_device": -1,
       "validation_metric": "+LAS",
       "optimizer": {
-        "type": "dense_sparse_adam",
-     	"lr": 3e-5,
-        "betas": [0.9, 0.9]
+        "type": "sgd",
+     	"lr": 1,
       }
     }
   }

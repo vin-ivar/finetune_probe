@@ -217,69 +217,10 @@ class BiaffineDependencyParser(Model):
 
         return layer
 
-    @overrides
-    def forward(
-        self,  # type: ignore
-        words: TextFieldTensors,
-        offsets: torch.LongTensor,
-        pos_tags: torch.LongTensor,
-        metadata: List[Dict[str, Any]],
-        head_tags: torch.LongTensor = None,
-        head_indices: torch.LongTensor = None,
-    ) -> Dict[str, torch.Tensor]:
-
-        """
-        # Parameters
-        words : TextFieldTensors, required
-            The output of `TextField.as_array()`, which should typically be passed directly to a
-            `TextFieldEmbedder`. This output is a dictionary mapping keys to `TokenIndexer`
-            tensors.  At its most basic, using a `SingleIdTokenIndexer` this is : `{"tokens":
-            Tensor(batch_size, sequence_length)}`. This dictionary will have the same keys as were used
-            for the `TokenIndexers` when you created the `TextField` representing your
-            sequence.  The dictionary is designed to be passed directly to a `TextFieldEmbedder`,
-            which knows how to combine different word representations into a single vector per
-            token in your input.
-        pos_tags : `torch.LongTensor`, required
-            The output of a `SequenceLabelField` containing POS tags.
-            POS tags are required regardless of whether they are used in the model,
-            because they are used to filter the evaluation metric to only consider
-            heads of words which are not punctuation.
-        metadata : List[Dict[str, Any]], optional (default=None)
-            A dictionary of metadata for each batch element which has keys:
-                words : `List[str]`, required.
-                    The tokens in the original sentence.
-                pos : `List[str]`, required.
-                    The dependencies POS tags for each word.
-        head_tags : torch.LongTensor, optional (default = None)
-            A torch tensor representing the sequence of integer gold class labels for the arcs
-            in the dependency parse. Has shape `(batch_size, sequence_length)`.
-        head_indices : torch.LongTensor, optional (default = None)
-            A torch tensor representing the sequence of integer indices denoting the parent of every
-            word in the dependency parse. Has shape `(batch_size, sequence_length)`.
-        # Returns
-        An output dictionary consisting of:
-        loss : `torch.FloatTensor`, optional
-            A scalar loss to be optimised.
-        arc_loss : `torch.FloatTensor`
-            The loss contribution from the unlabeled arcs.
-        loss : `torch.FloatTensor`, optional
-            The loss contribution from predicting the dependency
-            tags for the gold arcs.
-        heads : `torch.FloatTensor`
-            The predicted head indices for each word. A tensor
-            of shape (batch_size, sequence_length).
-        head_types : `torch.FloatTensor`
-            The predicted head types for each arc. A tensor
-            of shape (batch_size, sequence_length).
-        mask : `torch.BoolTensor`
-            A mask denoting the padded elements in the batch.
-        """
-
-        if self.lca != '':
-            # [ LCA ]
+    def log_lca(self):
+        if self.lca:
             lca = {}
             for k, v in self.named_parameters():
-                # mandatory
                 if not v.requires_grad or type(v.grad) == type(None):
                     continue
 
@@ -294,25 +235,30 @@ class BiaffineDependencyParser(Model):
                 if 'LayerNorm' in k:
                     continue
 
-                # k_path = '.'.join(k.split('.')[5:])
                 if 'query' in k or 'key' in k or 'value' in k:
                     embed_size = v.size(0) // self.num_heads
                     v = v.view(self.num_heads, embed_size, -1)
                     for n in range(self.num_heads):
                         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-                        self.writer.add_scalar(k + f'_head_{n}/mean', mean, self.step_counter)
                         self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
-                        self.writer.add_scalar(k + f'_head_{n}/numel', numel, self.step_counter)
                     # continue
 
                 mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
-                self.writer.add_scalar(f'{k}/mean', mean, self.step_counter)
                 self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
-                self.writer.add_scalar(f'{k}/numel', numel, self.step_counter)
 
             self.step_counter += 1
             # [ /LCA ]
 
+    @overrides
+    def forward(
+        self,  # type: ignore
+        words: TextFieldTensors,
+        offsets: torch.LongTensor,
+        pos_tags: torch.LongTensor,
+        metadata: List[Dict[str, Any]],
+        head_tags: torch.LongTensor = None,
+        head_indices: torch.LongTensor = None,
+    ) -> Dict[str, torch.Tensor]:
         embedded_text_input = self.text_field_embedder(words)
         embedded_text_input = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
 
