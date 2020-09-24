@@ -220,7 +220,11 @@ class BiaffineDependencyParser(Model):
     def log_lca(self):
         for k, v in self._saved_params.items():
             param_dict = dict(self.named_parameters())
-            lca = (param_dict[k] - v) * param_dict[k].grad
+            try:
+                lca = (param_dict[k] - v) * param_dict[k].grad
+            except TypeError:
+                logger.warning(f'{k} has no gradient; skipping LCA')
+                continue
 
             if lca.mean().item() == 0:
                 continue
