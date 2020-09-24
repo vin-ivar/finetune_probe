@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--val', action='store')
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--config', action='store', default='configs/cpu')
-    parser.add_argument('--save', action='store', default='experiments/models/default')
+    parser.add_argument('--save', action='store', default='experiments/models/default/test/deep')
     parser.add_argument('--freeze', action='store', type=str)
     parser.add_argument('--lca', action='store', type=str)
     args = parser.parse_args()
@@ -51,8 +51,10 @@ def main():
                                                      'model_size': size,
                                                      'lca': args.lca,
                                                      'freeze': args.freeze})
-    common_util.prepare_global_logging(args.save, True)
+
+    training_util.create_serialization_dir(config, args.save, recover=False, force=True)
     common_util.prepare_environment(config)
+    common_util.prepare_global_logging(args.save, True)
 
     reader = DatasetReader.from_params(config.pop('dataset_reader'))
     train_data = reader.read(config.pop('train_data_path'))
