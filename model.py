@@ -244,9 +244,6 @@ class BiaffineDependencyParser(Model):
                 logger.warning(f'{k} has no gradient; skipping LCA')
                 continue
 
-            if lca.mean().item() == 0:
-                continue
-
             total, numel = lca.sum().item(), lca.numel()
             sum_acc.setdefault(component, []).append(total)
             numel_acc.setdefault(component, []).append(numel)
