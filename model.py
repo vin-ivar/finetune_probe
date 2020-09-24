@@ -190,6 +190,12 @@ class BiaffineDependencyParser(Model):
         if freeze == 'debug':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k != '_head_sentinel']
 
+        if freeze == 'key':
+            params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
+
+        if freeze == 'query':
+            params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'query' in k]
+
         for k, v in params_to_freeze:
             logger.info(f'Freezing {k}')
             v.requires_grad_(False)
