@@ -84,7 +84,7 @@ def main():
 
         model.train()
         for batch in tqdm.tqdm(train_loader):
-            nn_util.move_to_device(batch, cuda_device)
+            batch = nn_util.move_to_device(batch, cuda_device)
             optimizer.zero_grad()
 
             output_dict = model(**batch)
@@ -105,7 +105,7 @@ def main():
 
         model.eval()
         for batch in tqdm.tqdm(val_loader):
-            nn_util.move_to_device(batch, cuda_device)
+            batch = nn_util.move_to_device(batch, cuda_device)
             with torch.no_grad():
                 output_dict = model(**batch)
                 loss = output_dict['loss']
