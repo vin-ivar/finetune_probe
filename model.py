@@ -129,7 +129,8 @@ class BiaffineDependencyParser(Model):
         self._input_dropout = Dropout(input_dropout)
         self._head_sentinel = torch.nn.Parameter(torch.randn([1, 1, text_field_embedder.get_output_dim()]))
 
-        self._saved_params = {i: torch.zeros_like(j.data) for (i, j) in self.named_parameters() if j.requires_grad}
+        self._saved_params = {i: torch.zeros_like(j.data).detach().cpu().numpy()
+                              for (i, j) in self.named_parameters() if j.requires_grad}
         # self._params_to_log = {}
 
         representation_dim = text_field_embedder.get_output_dim()
@@ -240,11 +241,11 @@ class BiaffineDependencyParser(Model):
                     embed_size = v.size(0) // self.num_heads
                     v = v.view(self.num_heads, embed_size, -1)
                     for n in range(self.num_heads):
-                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
+                        mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].size
                         self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
                     # continue
 
-                mean, sum, numel = v.mean().item(), v.sum().item(), v.numel()
+                mean, sum, numel = v.mean().item(), v.sum().item(), v.size
                 self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
 
             self.step_counter += 1
