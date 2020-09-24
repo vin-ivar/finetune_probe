@@ -217,8 +217,26 @@ class BiaffineDependencyParser(Model):
 
         return layer
 
+    def name_map(self, path):
+        path = path.split(".")
+        if path[0] == 'encoder':
+            return 'encoder'
+        if path[0] == 'text_field_embedder':
+            if 'embeddings' in path:
+                return 'embeddings'
+            if 'dense' in path:
+                if 'attention' in path:
+                    return path[-4]
+                return path[-3]
+                # return 'dense'
+            return path[-2]
+            # return 'attention'
+        return 'other'
+
     def log_lca(self):
+        sum_acc, numel_acc = {}, {}
         for k, v in self._saved_params.items():
+            component = self.name_map(k)
             param_dict = dict(self.named_parameters())
             try:
                 lca = (param_dict[k] - v) * param_dict[k].grad
@@ -229,8 +247,13 @@ class BiaffineDependencyParser(Model):
             if lca.mean().item() == 0:
                 continue
 
-            mean, sum, numel = lca.mean().item(), lca.sum().item(), lca.numel()
-            self.writer.add_scalar(f'{k}/sum', sum, self.step_counter)
+            total, numel = lca.sum().item(), lca.numel()
+            sum_acc.setdefault(component, []).append(total)
+            numel_acc.setdefault(component, []).append(numel)
+
+        for component in sum_acc.keys():
+            self.writer.add_scalar(f'{component}/sum', sum(sum_acc[component]), self.step_counter)
+            self.writer.add_scalar(f'{component}/numel', sum(numel_acc[component]), self.step_counter)
 
         self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
                               if v.requires_grad and 'LayerNorm' not in k and 'bias' not in k}
