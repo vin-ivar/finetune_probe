@@ -36,7 +36,7 @@ def main():
     parser.add_argument('--save', action='store', default='experiments/models/default/test/deep')
     parser.add_argument('--freeze', action='store', type=str)
     parser.add_argument('--lca', action='store', type=str)
-    parser.add_argument('--epochs', action='store', type=int, default=20)
+    parser.add_argument('--epochs', action='store', type=int)
     args = parser.parse_args()
 
     import_module_and_submodules("model")
