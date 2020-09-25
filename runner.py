@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--save', action='store', default='experiments/models/default/test/deep')
     parser.add_argument('--freeze', action='store', type=str)
     parser.add_argument('--lca', action='store', type=str)
+    parser.add_argument('--epochs', action='store', type=int, default=20)
     args = parser.parse_args()
 
     import_module_and_submodules("model")
@@ -77,7 +78,7 @@ def main():
     if cuda_device != -1:
         model.cuda(cuda_device)
 
-    for epoch in range(trainer._num_epochs):
+    for epoch in range(args.epochs):
         metrics = {}
         batches_this_epoch = 0
         train_loss = 0.0
