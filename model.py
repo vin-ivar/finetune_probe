@@ -289,7 +289,9 @@ class BiaffineDependencyParser(Model):
             raise ConfigurationError("Model uses a POS embedding, but no POS tags were passed.")
 
         # mask = get_text_field_mask(words)
-        mask = torch.ones_like(embedded_text_input)[:, :, 0].bool()
+        # mask = torch.ones_like(embedded_text_input)[:, :, 0].bool()
+        # mask = words['tokens']['mask']
+        mask = offsets != 0
 
         predicted_heads, predicted_head_tags, mask, arc_nll, tag_nll = self._parse(
             embedded_text_input, mask, head_tags, head_indices

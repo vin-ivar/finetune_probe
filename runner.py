@@ -93,7 +93,7 @@ def main():
             loss.backward()
             optimizer.step()
 
-            model.log_lca()
+            # model.log_lca()
             train_loss += loss.item()
             batches_this_epoch += 1
 
