@@ -196,7 +196,7 @@ class BiaffineDependencyParser(Model):
         if freeze == 'query':
             params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'query' in k]
 
-        for k, v in parat ms_to_freeze:
+        for k, v in params_to_freeze:
             logger.info(f'Freezing {k}')
             v.requires_grad_(False)
 
