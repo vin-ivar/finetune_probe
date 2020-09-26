@@ -173,10 +173,14 @@ class BiaffineDependencyParser(Model):
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'value' in k]
 
-        if freeze == 'boss':
+        if freeze == 'best':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
                                 and k.split('.')[-4] != 'attention']
+
+        if freeze == 'dense':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
 
         if freeze == 'enc':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
