@@ -59,7 +59,7 @@
       "validation_metric": "+LAS",
       "optimizer": {
         "type": "sgd",
-     	"lr": 1,
+     	"lr": 0.0001,
       }
     }
   }
