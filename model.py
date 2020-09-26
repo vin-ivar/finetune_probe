@@ -5,12 +5,11 @@ from typing import Dict, Tuple, Any, List
 import numpy
 import torch
 import torch.nn.functional as F
-import transformers
 from allennlp.common.checks import check_dimensions_match, ConfigurationError
 from allennlp.data import TextFieldTensors, Vocabulary
 from allennlp.models.model import Model
 from allennlp.modules import FeedForward
-from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder, Embedding, InputVariationalDropout
+from allennlp.modules import TextFieldEmbedder, Embedding, InputVariationalDropout
 from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
 from allennlp.nn import InitializerApplicator, Activation
 from allennlp.nn.chu_liu_edmonds import decode_mst
@@ -169,30 +168,22 @@ class BiaffineDependencyParser(Model):
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' in k or 'query' in k]
 
-        if freeze == 'v':
+        if freeze == 'good':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'value' in k]
+                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
+                                or 'value' in k]
 
         if freeze == 'best':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
+                                if ('output.dense.weight' in k or 'intermediate.dense.weight' in k)
                                 and k.split('.')[-4] != 'attention']
 
         if freeze == 'dense':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
 
-        if freeze == 'enc':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
-
         if freeze == 'net':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
-
-        if freeze == 'embed':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if 'embeddings' in k]
-
-        if freeze == 'debug':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k != '_head_sentinel']
 
         if freeze == 'key':
             params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
