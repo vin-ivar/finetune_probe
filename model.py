@@ -258,12 +258,8 @@ class BiaffineDependencyParser(Model):
             sum_acc.setdefault(component, []).append(total)
             numel_acc.setdefault(component, []).append(numel)
 
-        to_string = " - ".join([str(sum(i)) for i in sum_acc.values()])
-        # logger.warning(f'Step {self.step_counter} - {to_string}')
         for component in sum_acc.keys():
-            # logger.warning(f'Logging {component} @ {self.step_counter}; val. {sum(sum_acc[component])}')
             self.writer.add_scalar(f'{component}/sum', sum(sum_acc[component]), self.step_counter)
-            # logger.warning(f'Logging {component} @ {self.step_counter}; val. {sum(numel_acc[component])}')
             self.writer.add_scalar(f'{component}/numel', sum(numel_acc[component]), self.step_counter)
 
         self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
