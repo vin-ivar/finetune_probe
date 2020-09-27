@@ -62,6 +62,7 @@ def main():
     val_data = reader.read(config.pop('validation_data_path'))
 
     vocab = Vocabulary.from_instances(train_data + val_data)
+    vocab.save_to_files(os.path.join(args.save, "vocabulary"))
     model = Model.from_params(config.pop('model'), vocab=vocab)
 
     train_data.index_with(vocab)
@@ -70,7 +71,7 @@ def main():
     train_loader = DataLoader.from_params(config.get('data_loader'), dataset=train_data)
     val_loader = DataLoader.from_params(config.get('data_loader'), dataset=val_data)
 
-    trainer = Trainer.from_params(config.pop('trainer'), model=model, serialization_dir='/tmp',
+    trainer = Trainer.from_params(config.pop('trainer'), model=model, serialization_dir=args.save,
                                   data_loader=train_loader, validation_data_loader=val_loader)
     optimizer = trainer.optimizer
     cuda_device = trainer.cuda_device
@@ -129,6 +130,7 @@ def main():
             trainer._metric_tracker.best_epoch_metrics = val_metrics
 
         common_util.dump_metrics(os.path.join(args.save, 'metrics.json'), metrics=metrics, log=True)
+        trainer._checkpointer.save_checkpoint(epoch, trainer, trainer._metric_tracker.is_best_so_far())
 
 
 main()
