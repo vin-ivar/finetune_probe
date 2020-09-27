@@ -178,6 +178,19 @@ class BiaffineDependencyParser(Model):
                                 if ('output.dense.weight' in k or 'intermediate.dense.weight' in k)
                                 and k.split('.')[-4] != 'attention']
 
+        if freeze == 'only_kq':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+                                if 'key' not in k and 'query' not in k and '_head_sentinel' not in k]
+
+        if freeze == 'kq_net':
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'key' not in k and 'query' not in k]
+
+        if freeze == 'kq_embed':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if
+                                "key" not in k and "query" not in k and
+                                "_head_sentinel" not in k and "embeddings" not in k]
+
         if freeze == 'dense':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
