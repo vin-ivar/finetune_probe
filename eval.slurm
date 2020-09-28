@@ -10,11 +10,12 @@ source ~/.bashrc
 module purge
 conda activate debug
 
-tb_short=(ar_padt eu_bdt zh_gsd en_ewt
-          fi_tdt he_htb hi_hdtb it_isdt
-          ja_gsd ko_gsd ru_syntagrus
-          sv_talbanken tr_imst)
-UD="/cluster/projects/nn9447k/corpora/ud"
+tb_short=(ar_pud zh_pud cs_pud en_pud 
+          fi_pud fr_pud de_pud hi_pud 
+          id_pud it_pud ja_pud ko_pud 
+          pl_pud pt_pud ru_pud es_pud 
+          sv_pud th_pud tr_pud)
+UD="/cluster/projects/nn9447k/corpora/pud"
 
 for lang in ${tb_short[@]}; do
     printf "%s\t" $lang
