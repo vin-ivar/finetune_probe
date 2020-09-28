@@ -45,6 +45,8 @@ def main():
 
     vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
     model = Model.load(config, args.path, os.path.join(args.path, 'model_state_epoch_19.th'))
+    if cuda_device != -1:
+        model.cuda(cuda_device)
 
     reader = DatasetReader.from_params(config.pop('dataset_reader'))
     test_data = reader.read(args.test)
