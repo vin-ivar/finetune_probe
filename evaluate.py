@@ -18,21 +18,21 @@ import tensorboard
 import torch
 import tqdm
 import json
-
+import sys
 import os
 
 import logging
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel("INFO")
+logger.setLevel("ERROR")
 
 def main():
     parser = ArgumentParser()
     parser.add_argument('--test', action='store')
-    parser.add_argument('--config', action='store', default='configs/gpu.jsonnet')
+    parser.add_argument('--config', action='store')
     parser.add_argument('--model', action='store', default='bert')
-    parser.add_argument('--path', action='store', default='models/ud.all_pud.dense.20.underparam')
+    parser.add_argument('--path', action='store', default='models/ud.all_pud.none.20.underparam')
     args = parser.parse_args()
 
     import_module_and_submodules("model")
@@ -41,15 +41,18 @@ def main():
     model_name = 'xlm-roberta-large' if args.model == 'xlmr' else 'bert-base-multilingual-cased'
     config = Params.from_file(args.config, ext_vars={'train_path': "", 'val_path': "", 'model_size': "", 'lca': "",
                                                      'freeze': "", 'model_name': model_name})
+    cuda_device = config.get('trainer').get('cuda_device')
 
-    reader = DatasetReader.from_params(config.pop('dataset_reader'))
     vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
     model = Model.load(config, args.path, os.path.join(args.path, 'model_state_epoch_19.th'))
 
+    reader = DatasetReader.from_params(config.pop('dataset_reader'))
     test_data = reader.read(args.test)
     test_data.index_with(vocab)
+
     loader = DataLoader(test_data)
 
-    print(training_util.evaluate(model, loader, cuda_device=-1, batch_weight_key=None))
+    results = training_util.evaluate(model, loader, cuda_device=cuda_device, batch_weight_key=None)
+    sys.stdout.write("{:.2f}\t{:.2f}".format(100 * results['UAS'], 100 * results['LAS']))
 
 main()

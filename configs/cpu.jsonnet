@@ -27,8 +27,8 @@
         },
       },
       "use_mst_decoding_for_validation": false,
-      "arc_representation_dim": 5,
-      "tag_representation_dim": 1,
+      "arc_representation_dim": 500,
+      "tag_representation_dim": 100,
       "dropout": 0.3,
       "input_dropout": 0.3,
       "initializer": {
