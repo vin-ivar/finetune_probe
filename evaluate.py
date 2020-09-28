@@ -32,7 +32,7 @@ def main():
     parser.add_argument('--test', action='store')
     parser.add_argument('--config', action='store', default='configs/gpu.jsonnet')
     parser.add_argument('--model', action='store', default='bert')
-    parser.add_argument('--path', action='store', default='/tmp')
+    parser.add_argument('--path', action='store', default='models/ud.all_pud.dense.20.underparam')
     args = parser.parse_args()
 
     import_module_and_submodules("model")
@@ -50,6 +50,6 @@ def main():
     test_data.index_with(vocab)
     loader = DataLoader(test_data)
 
-    print(training_util.evaluate(model, loader))
+    print(training_util.evaluate(model, loader, cuda_device=-1, batch_weight_key=None))
 
 main()
