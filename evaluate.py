@@ -14,10 +14,7 @@ from allennlp.common import util as common_util
 from allennlp.training.metric_tracker import MetricTracker
 
 
-import tensorboard
-import torch
-import tqdm
-import json
+import glob
 import sys
 import os
 
@@ -31,7 +28,6 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('--test', action='store')
     parser.add_argument('--config', action='store')
-    parser.add_argument('--lang', action='store')
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--path', action='store', default='models/ud.all_pud.none.20.underparam')
     args = parser.parse_args()
@@ -47,13 +43,15 @@ def main():
     vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
     model = Model.load(config, args.path, os.path.join(args.path, 'model_state_epoch_19.th'), cuda_device=cuda_device)
 
-    reader = DatasetReader.from_params(config.pop('dataset_reader'))
-    test_data = reader.read(args.test)
-    test_data.index_with(vocab)
+    for i in glob.glob(f"{args.text}/*_pud"):
+        lang = i.split("/")[-1].split("_")[0]
+        reader = DatasetReader.from_params(config.get('dataset_reader'))
+        test_data = reader.read(os.path.join(i, f"{lang}_pud-ud-test.conllu"))
+        test_data.index_with(vocab)
 
-    loader = DataLoader(test_data)
+        loader = DataLoader(test_data)
 
-    results = training_util.evaluate(model, loader, cuda_device=cuda_device, batch_weight_key=None)
-    sys.stdout.write("! {}\t{:.2f}\t{:.2f}\n".format(args.lang, 100 * results['UAS'], 100 * results['LAS']))
+        results = training_util.evaluate(model, loader, cuda_device=cuda_device, batch_weight_key=None)
+        sys.stdout.write("! {}\t{:.2f}\t{:.2f}\n".format(lang, 100 * results['UAS'], 100 * results['LAS']))
 
 main()
