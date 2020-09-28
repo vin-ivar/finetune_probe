@@ -11,5 +11,5 @@ UD="/cluster/projects/nn9447k/corpora/ud"
 
 for lang in $tb_short[@]; do
 	printf "%s" $lang
-	python3 finetune.py --test $UD/$lang/$lang-ud-test.conllu --path $1
+	python3 finetune.py --config configs/gpu.jsonnet --test $UD/$lang/$lang-ud-test.conllu --path $1
 done
