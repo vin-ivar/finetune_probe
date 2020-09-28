@@ -31,6 +31,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument('--test', action='store')
     parser.add_argument('--config', action='store')
+    parser.add_argument('--lang', action='store')
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--path', action='store', default='models/ud.all_pud.none.20.underparam')
     args = parser.parse_args()
@@ -53,6 +54,6 @@ def main():
     loader = DataLoader(test_data)
 
     results = training_util.evaluate(model, loader, cuda_device=cuda_device, batch_weight_key=None)
-    sys.stdout.write("{:.2f}\t{:.2f}".format(100 * results['UAS'], 100 * results['LAS']))
+    sys.stdout.write("! {}\t{:.2f}\t{:.2f}\n".format(args.lang, 100 * results['UAS'], 100 * results['LAS']))
 
 main()

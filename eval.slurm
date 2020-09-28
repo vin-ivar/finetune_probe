@@ -18,6 +18,6 @@ UD="/cluster/projects/nn9447k/corpora/ud"
 
 for lang in ${tb_short[@]}; do
     printf "%s\t" $lang
-    python3 evaluate.py --config configs/gpu.jsonnet --test $UD/$lang/$lang-ud-test.conllu --path $1
+    python3 evaluate.py --config configs/gpu.jsonnet --test $UD/$lang/$lang-ud-test.conllu --path $1 --lang $lang
     printf "\n"
 done
