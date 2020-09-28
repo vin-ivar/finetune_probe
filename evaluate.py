@@ -43,7 +43,7 @@ def main():
     vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
     model = Model.load(config, args.path, os.path.join(args.path, 'model_state_epoch_19.th'), cuda_device=cuda_device)
 
-    for i in glob.glob(f"{args.text}/*_pud"):
+    for i in glob.glob(f"{args.test}/*_pud"):
         lang = i.split("/")[-1].split("_")[0]
         reader = DatasetReader.from_params(config.get('dataset_reader'))
         test_data = reader.read(os.path.join(i, f"{lang}_pud-ud-test.conllu"))
