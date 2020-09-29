@@ -190,6 +190,10 @@ class BiaffineDependencyParser(Model):
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
                                 if 'query' not in k and '_head_sentinel' not in k]
 
+        if freeze == 'only_values':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+                                if 'value' not in k and '_head_sentinel' not in k]
+
         if freeze == 'kq_net':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' not in k and 'query' not in k]
