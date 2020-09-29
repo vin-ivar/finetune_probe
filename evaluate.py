@@ -26,7 +26,7 @@ logger.setLevel("ERROR")
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument('--test', action='store')
+    parser.add_argument('--test', nargs='+', action='store')
     parser.add_argument('--config', action='store')
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--path', action='store', default='models/ud.all_pud.none.20.underparam')
@@ -40,13 +40,16 @@ def main():
                                                      'freeze': "", 'model_name': model_name})
     cuda_device = config.get('trainer').get('cuda_device')
 
-    vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
     model = Model.load(config, args.path, os.path.join(args.path, 'model_state_epoch_19.th'), cuda_device=cuda_device)
+    reader = DatasetReader.from_params(config.get('dataset_reader'))
 
-    for i in glob.glob(f"{args.test}/*_pud"):
+    print(args.test)
+    for i in args.test:
+        vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
         lang = i.split("/")[-1].split("_")[0]
-        reader = DatasetReader.from_params(config.get('dataset_reader'))
-        test_data = reader.read(os.path.join(i, f"{lang}_pud-ud-test.conllu"))
+        test_data = reader.read(i)
+        model.vocab.extend_from_instances(test_data)
+        model.extend_embedder_vocab()
         test_data.index_with(vocab)
 
         loader = DataLoader(test_data)
