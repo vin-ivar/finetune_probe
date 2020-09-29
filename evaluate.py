@@ -40,17 +40,18 @@ def main():
                                                      'freeze': "", 'model_name': model_name})
     cuda_device = config.get('trainer').get('cuda_device')
 
-    model = Model.load(config, args.path, os.path.join(args.path, 'model_state_epoch_19.th'), cuda_device=cuda_device)
     reader = DatasetReader.from_params(config.get('dataset_reader'))
+    model = Model.load(config.duplicate(), args.path, os.path.join(args.path, 'model_state_epoch_19.th'), cuda_device=cuda_device)
+    old_vocab = model.vocab
 
     print(args.test)
     for i in args.test:
-        vocab = Vocabulary.from_files(os.path.join(args.path, 'vocabulary'))
+        model.vocab = old_vocab
         lang = i.split("/")[-1].split("_")[0]
         test_data = reader.read(i)
         model.vocab.extend_from_instances(test_data)
         model.extend_embedder_vocab()
-        test_data.index_with(vocab)
+        test_data.index_with(model.vocab)
 
         loader = DataLoader(test_data)
 
