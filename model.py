@@ -164,19 +164,23 @@ class BiaffineDependencyParser(Model):
         initializer(self)
 
         params_to_freeze = []
-        if freeze == 'kq':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' in k or 'query' in k]
+        # if freeze == 'kq':
+        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+        #                         if 'key' in k or 'query' in k]
+        #
+        # if freeze == 'good':
+        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+        #                         if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
+        #                         or 'value' in k]
+        #
+        # if freeze == 'best':
+        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+        #                         if ('output.dense.weight' in k or 'intermediate.dense.weight' in k)
+        #                         and k.split('.')[-4] != 'attention']
 
-        if freeze == 'good':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
-                                or 'value' in k]
-
-        if freeze == 'best':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if ('output.dense.weight' in k or 'intermediate.dense.weight' in k)
-                                and k.split('.')[-4] != 'attention']
+        def debug_unfrozen(self, p):
+            keys = [i[0] for i in p]
+            print("\n".join([k for (k, v) in self.named_parameters() if k not in keys]))
 
         if freeze == 'only_kq':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
@@ -197,27 +201,31 @@ class BiaffineDependencyParser(Model):
         if freeze == 'only_net':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k.startswith('text_field_embedder')]
 
-        if freeze == 'kq_net':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' not in k and 'query' not in k]
+        if freeze == "only_dense":
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+                                if '_head_sentinel' not in k and (not k.startswith('text_field_embedder') or 'dense' not in k or 'pooler' in k)]
 
-        if freeze == 'kq_embed':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if
-                                "key" not in k and "query" not in k and
-                                "_head_sentinel" not in k and "embeddings" not in k]
-
-        if freeze == 'dense':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
-
-        if freeze == 'net':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
-
-        if freeze == 'key':
-            params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
-
-        if freeze == 'query':
-            params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'query' in k]
+        # if freeze == 'kq_net':
+        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+        #                         if 'key' not in k and 'query' not in k]
+        #
+        # if freeze == 'kq_embed':
+        #     params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if
+        #                         "key" not in k and "query" not in k and
+        #                         "_head_sentinel" not in k and "embeddings" not in k]
+        #
+        # if freeze == 'dense':
+        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+        #                         if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
+        #
+        # if freeze == 'net':
+        #     params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
+        #
+        # if freeze == 'key':
+        #     params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
+        #
+        # if freeze == 'query':
+        #     params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'query' in k]
 
         for k, v in params_to_freeze:
             logger.info(f'Freezing {k}')
