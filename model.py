@@ -198,6 +198,10 @@ class BiaffineDependencyParser(Model):
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
                                 if 'value' not in k and '_head_sentinel' not in k]
 
+        if freeze == 'only_enc':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+                                if '_head_sentinel' not in k and not k.startswith('text_field_embedder')]
+
         if freeze == 'only_net':
             params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k.startswith('text_field_embedder')]
 
