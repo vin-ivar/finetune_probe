@@ -10,10 +10,4 @@ source ~/.bashrc
 module purge
 conda activate debug
 
-# tb_short=(ar_pud zh_pud cs_pud en_pud
-#           fi_pud fr_pud de_pud hi_pud
-#           id_pud it_pud ja_pud ko_pud
-#           pl_pud pt_pud ru_pud es_pud
-#           sv_pud th_pud tr_pud)
-UD="/cluster/projects/nn9447k/corpora/pud"
-python3 evaluate.py --config configs/gpu.jsonnet --test $UD --path $1
+python3 evaluate.py --config configs/gpu.jsonnet --path $1 --test ${@:2}

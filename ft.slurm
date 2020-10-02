@@ -4,6 +4,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=100:00:00
 #SBATCH --mem-per-cpu=10G
+#SBATCh --priority=TOP
 
 set -o errexit
 source ~/.bashrc
@@ -23,4 +24,4 @@ fi
 python3 runner.py --train "$UD/$2/$2-ud-$train.conllu" --val "$UD/$2/$2-ud-$dev.conllu" \
                   --config "./configs/gpu.jsonnet" --save "experiments/models/$1.$2.$3.$4.underparam" --model "bert" \
                   --lca "experiments/stats/$1.$2.$3.$4.underparam" --freeze $3 --epochs $4
-rm -rf ./experiments/models/$1.$2.$3.underparam
+# rm -rf ./experiments/models/$1.$2.$3.underparam

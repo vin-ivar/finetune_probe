@@ -222,8 +222,8 @@ class BiaffineDependencyParser(Model):
         #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
         #                         if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
         #
-        # if freeze == 'net':
-        #     params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
+        if freeze == 'net':
+            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
         #
         # if freeze == 'key':
         #     params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
