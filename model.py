@@ -183,31 +183,27 @@ class BiaffineDependencyParser(Model):
             print("\n".join([k for (k, v) in self.named_parameters() if k not in keys]))
 
         if freeze == 'only_kq':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' not in k and 'query' not in k and '_head_sentinel' not in k]
 
         if freeze == 'only_keys':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' not in k and '_head_sentinel' not in k]
 
         if freeze == 'only_queries':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'query' not in k and '_head_sentinel' not in k]
 
         if freeze == 'only_values':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'value' not in k and '_head_sentinel' not in k]
 
-        if freeze == 'only_enc':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
-                                if '_head_sentinel' not in k and not k.startswith('text_field_embedder')]
-
         if freeze == 'only_net':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if k.startswith('text_field_embedder')]
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
         if freeze == "only_dense":
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters()
-                                if '_head_sentinel' not in k and (not k.startswith('text_field_embedder') or 'dense' not in k or 'pooler' in k)]
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if '_head_sentinel' not in k and 'dense' not in k or 'pooler' in k]
 
         # if freeze == 'kq_net':
         #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
@@ -223,7 +219,7 @@ class BiaffineDependencyParser(Model):
         #                         if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
         #
         if freeze == 'artur':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if not k.startswith('text_field_embedder')]
         #
         # if freeze == 'key':
         #     params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
