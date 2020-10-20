@@ -11,7 +11,7 @@ from allennlp.training.trainer import Trainer
 from allennlp.nn import util as nn_util
 from allennlp.training import util as training_util
 from allennlp.common import util as common_util
-from allennlp.training.metric_tracker import MetricTracker
+from allennlp.common.logging import prepare_global_logging
 
 
 import tensorboard
@@ -56,7 +56,7 @@ def main():
     # model = train_model(config, args.save, force=True)
     training_util.create_serialization_dir(config, args.save, recover=False, force=True)
     common_util.prepare_environment(config)
-    common_util.prepare_global_logging(args.save, True)
+    prepare_global_logging(args.save, True)
 
     reader = DatasetReader.from_params(config.pop('dataset_reader'))
     train_data = reader.read(config.pop('train_data_path'))
