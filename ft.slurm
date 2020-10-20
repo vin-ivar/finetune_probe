@@ -4,7 +4,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --time=100:00:00
 #SBATCH --mem-per-cpu=10G
-#SBATCh --priority=TOP
 
 set -o errexit
 source ~/.bashrc
