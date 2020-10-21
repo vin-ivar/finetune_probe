@@ -292,8 +292,7 @@ class BiaffineDependencyParser(Model):
             embedded_text_input, mask, head_tags, head_indices
         )
 
-        # loss = arc_nll + tag_nll
-        loss = arc_nll
+        loss = arc_nll + tag_nll
 
         if head_indices is not None and head_tags is not None:
             evaluation_mask = self._get_mask_for_eval(mask[:, 1:], pos_tags)
