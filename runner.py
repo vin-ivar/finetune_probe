@@ -102,7 +102,7 @@ def main():
 
             train_metrics = training_util.get_metrics(model, train_loss, train_loss, batches_this_epoch,
                                                       reset=False, cuda_device=[cuda_device])
-            train_tqdm.set_description(training_util.description_from_metrics(train_metrics))
+            train_tqdm.set_description(training_util.description_from_metrics(train_metrics), refresh=False)
         # eval
         batches_this_epoch = 0
         val_loss = 0.0
@@ -120,7 +120,7 @@ def main():
 
             val_metrics = training_util.get_metrics(model, val_loss, val_loss, batches_this_epoch,
                                                     reset=False, cuda_device=[cuda_device])
-            val_tqdm.set_description(training_util.description_from_metrics(val_metrics))
+            val_tqdm.set_description(training_util.description_from_metrics(val_metrics), refresh=False)
 
         trainer._metric_tracker.add_metric(val_metrics[trainer._validation_metric])
         metrics['epoch'] = epoch
