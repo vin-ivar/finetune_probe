@@ -13,10 +13,10 @@ from allennlp.training import util as training_util
 from allennlp.common import util as common_util
 from allennlp.common.logging import prepare_global_logging
 
-from torch.nn.utils import clip_grad_norm_
 
 import tensorboard
 import torch
+import time
 import tqdm
 import json
 
@@ -82,6 +82,7 @@ def main():
         model.cuda(cuda_device)
 
     for epoch in range(args.epochs):
+        epoch_start_time = time.time()
         metrics = {}
         batches_this_epoch = 0
         train_loss = 0.0
@@ -95,10 +96,6 @@ def main():
             output_dict = model(**batch)
             loss = output_dict['loss']
             loss.backward()
-
-            parameters_to_clip = [p for p in model.parameters() if p.grad is not None]
-            clip_grad_norm_(parameters_to_clip, trainer._grad_norm)
-
             optimizer.step()
 
             model.log_lca()
