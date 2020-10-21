@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
 from allennlp.commands.train import train_model
-from allennlp.common import Params
+from allennlp.common import Params, Tqdm
 from allennlp.common.util import import_module_and_submodules
 
 from allennlp.data import DataLoader, DatasetReader, Instance, Vocabulary
@@ -77,16 +77,17 @@ def main():
     optimizer = trainer.optimizer
     cuda_device = trainer.cuda_device
 
-    if cuda_device != -1:
+    if cuda_device.type != 'cpu':
         model.cuda(cuda_device)
 
     for epoch in range(args.epochs):
         metrics = {}
         batches_this_epoch = 0
         train_loss = 0.0
+        train_tqdm = Tqdm.tqdm(train_loader)
 
         model.train()
-        for batch in tqdm.tqdm(train_loader):
+        for batch in train_tqdm:
             batch = nn_util.move_to_device(batch, cuda_device)
             optimizer.zero_grad()
 
@@ -101,12 +102,15 @@ def main():
 
             train_metrics = training_util.get_metrics(model, train_loss, train_loss, batches_this_epoch,
                                                       reset=False, cuda_device=[cuda_device])
+            train_tqdm.set_description(training_util.description_from_metrics(train_metrics))
         # eval
         batches_this_epoch = 0
         val_loss = 0.0
 
+        val_tqdm = Tqdm.tqdm(val_loader)
+
         model.eval()
-        for batch in tqdm.tqdm(val_loader):
+        for batch in tqdm.tqdm(val_tqdm):
             batch = nn_util.move_to_device(batch, cuda_device)
             with torch.no_grad():
                 output_dict = model(**batch)
@@ -116,6 +120,7 @@ def main():
 
             val_metrics = training_util.get_metrics(model, val_loss, val_loss, batches_this_epoch,
                                                     reset=False, cuda_device=[cuda_device])
+            val_tqdm.set_description(training_util.description_from_metrics(val_metrics))
 
         trainer._metric_tracker.add_metric(val_metrics[trainer._validation_metric])
         metrics['epoch'] = epoch
