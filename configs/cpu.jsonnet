@@ -52,6 +52,7 @@
       },
     },
     "trainer": {
+      "type": "gradient_descent_with_lca",
       "num_epochs": 1,
       "grad_norm": 5.0,
       "patience": 20,
