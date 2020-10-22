@@ -423,6 +423,8 @@ class GradientDescentTrainer(Trainer):
             if self._momentum_scheduler:
                 self._momentum_scheduler.step_batch(batch_num_total)
 
+            self._pytorch_model.log_lca()
+
             param_updates = None
             if self._tensorboard.should_log_histograms_this_batch() and self._master:
                 # Get the magnitude of parameter updates for logging.  We need to do some
