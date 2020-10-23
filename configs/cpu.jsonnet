@@ -53,7 +53,7 @@
     },
     "trainer": {
       "type": "gradient_descent_with_lca",
-      "num_epochs": 1,
+      "num_epochs": std.parseInt(std.extVar("epochs")),
       "grad_norm": 5.0,
       "patience": 20,
       "cuda_device": -1,

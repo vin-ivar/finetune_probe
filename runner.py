@@ -37,7 +37,7 @@ def main():
     parser.add_argument('--save', action='store', default='experiments/models/default/test/deep')
     parser.add_argument('--freeze', action='store', type=str)
     parser.add_argument('--lca', action='store', type=str)
-    parser.add_argument('--epochs', action='store', type=int)
+    parser.add_argument('--epochs', action='store', type=str)
     args = parser.parse_args()
 
     import_module_and_submodules("components.loader")
@@ -48,12 +48,9 @@ def main():
     size = '1024' if args.model == 'xlmr' else '768'
     logger.info(f'Using model {model_name}')
 
-    config = Params.from_file(args.config, ext_vars={'train_path': args.train,
-                                                     'val_path': args.val,
-                                                     'model_name': model_name,
-                                                     'model_size': size,
-                                                     'lca': args.lca,
-                                                     'freeze': args.freeze})
+    config = Params.from_file(args.config, ext_vars={'train_path': args.train, 'val_path': args.val,
+                                                     'model_name': model_name, 'model_size': size,
+                                                     'lca': args.lca, 'freeze': args.freeze, 'epochs': args.epochs})
 
     model = train_model(config, args.save, force=True)
 
