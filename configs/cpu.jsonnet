@@ -17,6 +17,7 @@
     "model": {
       "type": "wordpiece_parser",
       "lca": std.extVar("lca"),
+      "lca_mode": std.extVar("lca_mode"),
       "freeze": std.extVar("freeze"),
       "text_field_embedder": {
         "token_embedders": {

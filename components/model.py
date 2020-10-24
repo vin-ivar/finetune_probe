@@ -79,6 +79,7 @@ class BiaffineDependencyParser(Model):
         vocab: Vocabulary,
         freeze: str,
         lca: str,
+        lca_mode: str,
         text_field_embedder: TextFieldEmbedder,
         tag_representation_dim: int,
         arc_representation_dim: int,
@@ -96,6 +97,7 @@ class BiaffineDependencyParser(Model):
         self.text_field_embedder = text_field_embedder
         self.num_heads = 12
         self.lca = lca
+        self.lca_mode = lca_mode
 
         self.step_counter = 0
         if lca != '':
@@ -251,7 +253,31 @@ class BiaffineDependencyParser(Model):
             if comp in path:
                 return comp
 
-    def log_lca(self):
+    def headed_lca(self):
+        if self.step_counter > 5000:
+            return
+
+        for k, v in self._saved_params.items():
+            layer = k.split(".")[5]
+            component = k.split(".")[8]
+            param_dict = dict(self.named_parameters())
+            try:
+                lca = (param_dict[k] - v) * param_dict[k].grad
+            except TypeError:
+                continue
+
+            embed_size = lca.size(0) // self.num_heads
+            current = lca.view(self.num_heads, embed_size, -1)
+            for head in range(self.num_heads):
+                total, numel = current[head].sum().item(), current[head].numel()
+                self.writer.add_scalar(f'{component}_{layer}_{head}/sum', total, self.step_counter)
+
+        self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
+                              if v.requires_grad and 'bias' not in k and
+                              ('key' in k or 'query' in k or 'value' in k)}
+        self.step_counter += 1
+
+    def component_lca(self):
         sum_acc, numel_acc = {}, {}
         for k, v in self._saved_params.items():
             component = self.kqv_dense(k)
@@ -261,7 +287,6 @@ class BiaffineDependencyParser(Model):
             try:
                 lca = (param_dict[k] - v) * param_dict[k].grad
             except TypeError:
-                # logger.warning(f'{k} has no gradient; skipping LCA')
                 continue
 
             total, numel = lca.sum().item(), lca.numel()
@@ -276,12 +301,11 @@ class BiaffineDependencyParser(Model):
                               if v.requires_grad and 'LayerNorm' not in k and 'bias' not in k}
         self.step_counter += 1
 
-        # if 'query' in k or 'key' in k or 'value' in k:
-        #     embed_size = lca.size(0) // self.num_heads
-        #     current = lca.view(self.num_heads, embed_size, -1)
-        #     for n in range(self.num_heads):
-        #         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-        #         self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
+    def log_lca(self):
+        if self.lca_mode == 'head_layer':
+            self.headed_lca()
+        elif self.lca_mode == 'componentwise':
+            self.component_lca()
 
     @overrides
     def forward(
