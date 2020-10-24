@@ -103,13 +103,13 @@ class BiaffineDependencyParser(Model):
 
         encoder_dim = text_field_embedder.get_output_dim()
 
-        self.head_arc_feedforward = arc_feedforward or FeedForward(
-            encoder_dim, 1, arc_representation_dim, Activation.by_name("elu")()
-        )
-        self.child_arc_feedforward = copy.deepcopy(self.head_arc_feedforward)
+        # self.head_arc_feedforward = arc_feedforward or FeedForward(
+        #     encoder_dim, 1, arc_representation_dim, Activation.by_name("elu")()
+        # )
+        # self.child_arc_feedforward = copy.deepcopy(self.head_arc_feedforward)
 
         self.arc_attention = BilinearMatrixAttention(
-            arc_representation_dim, arc_representation_dim, use_input_biases=True
+            encoder_dim, encoder_dim, use_input_biases=True
         )
 
         num_labels = self.vocab.get_vocab_size("head_tags")
@@ -134,18 +134,18 @@ class BiaffineDependencyParser(Model):
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
 
-        check_dimensions_match(
-            tag_representation_dim,
-            self.head_tag_feedforward.get_output_dim(),
-            "tag representation dim",
-            "tag feedforward output dim",
-        )
-        check_dimensions_match(
-            arc_representation_dim,
-            self.head_arc_feedforward.get_output_dim(),
-            "arc representation dim",
-            "arc feedforward output dim",
-        )
+        # check_dimensions_match(
+        #     tag_representation_dim,
+        #     self.head_tag_feedforward.get_output_dim(),
+        #     "tag representation dim",
+        #     "tag feedforward output dim",
+        # )
+        # check_dimensions_match(
+        #     arc_representation_dim,
+        #     self.head_arc_feedforward.get_output_dim(),
+        #     "arc representation dim",
+        #     "arc feedforward output dim",
+        # )
 
         self.use_mst_decoding_for_validation = use_mst_decoding_for_validation
 
@@ -292,7 +292,7 @@ class BiaffineDependencyParser(Model):
             embedded_text_input, mask, head_tags, head_indices
         )
 
-        loss = arc_nll + tag_nll
+        loss = arc_nll # + tag_nll
 
         if head_indices is not None and head_tags is not None:
             evaluation_mask = self._get_mask_for_eval(mask[:, 1:], pos_tags)
@@ -368,14 +368,14 @@ class BiaffineDependencyParser(Model):
         encoded_text = self._dropout(encoded_text)
 
         # shape (batch_size, sequence_length, arc_representation_dim)
-        head_arc_representation = self._dropout(self.head_arc_feedforward(encoded_text))
-        child_arc_representation = self._dropout(self.child_arc_feedforward(encoded_text))
+        # head_arc_representation = self._dropout(self.head_arc_feedforward(encoded_text))
+        # child_arc_representation = self._dropout(self.child_arc_feedforward(encoded_text))
 
         # shape (batch_size, sequence_length, tag_representation_dim)
         head_tag_representation = self._dropout(self.head_tag_feedforward(encoded_text))
         child_tag_representation = self._dropout(self.child_tag_feedforward(encoded_text))
         # shape (batch_size, sequence_length, sequence_length)
-        attended_arcs = self.arc_attention(head_arc_representation, child_arc_representation)
+        attended_arcs = self.arc_attention(encoded_text, encoded_text)
 
         minus_inf = -1e8
         minus_mask = ~mask * minus_inf
