@@ -234,10 +234,29 @@ class BiaffineDependencyParser(Model):
             # return 'attention'
         return 'other'
 
+    def kqv_dense(self, path):
+        if 'text_field_embedder' not in path:
+            return
+
+        if 'attention.output.dense' in path:
+            return 'fc_attn'
+
+        if 'intermediate.dense' in path:
+            return 'fc1'
+
+        if 'output.dense' in path:
+            return 'fc2'
+
+        for comp in ['key', 'query', 'value']:
+            if comp in path:
+                return comp
+
     def log_lca(self):
         sum_acc, numel_acc = {}, {}
         for k, v in self._saved_params.items():
-            component = self.name_map(k)
+            component = self.kqv_dense(k)
+            if not component or 'bias' in k:
+                continue
             param_dict = dict(self.named_parameters())
             try:
                 lca = (param_dict[k] - v) * param_dict[k].grad
