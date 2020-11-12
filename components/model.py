@@ -170,6 +170,7 @@ class BiaffineDependencyParser(Model):
             keys = [i[0] for i in p]
             print("\n".join([k for (k, v) in self.named_parameters() if k not in keys]))
 
+        mode, freeze = freeze.split(".")
         if freeze == 'only_kq':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' not in k and 'query' not in k and '_head_sentinel' not in k]
@@ -194,8 +195,12 @@ class BiaffineDependencyParser(Model):
                                 if '_head_sentinel' not in k and 'dense' not in k or 'pooler' in k]
 
         for k, v in params_to_freeze:
-            logger.info(f'Freezing {k}')
-            v.requires_grad_(False)
+            if mode == 'freeze':
+                logger.info(f'Freezing {k}')
+                v.requires_grad_(False)
+            elif mode == 'rand':
+                logger.info(f'Randomizing {k}')
+                torch.nn.init.xavier_uniform_(v)
 
     @overrides
     def extend_embedder_vocab(self, embedding_sources_mapping: Dict[str, str] = None) -> None:
