@@ -200,7 +200,10 @@ class BiaffineDependencyParser(Model):
                 v.requires_grad_(False)
             elif mode == 'rand':
                 logger.info(f'Randomizing {k}')
-                torch.nn.init.xavier_uniform_(v)
+                if k.endswith('weight'):
+                    torch.nn.init.xavier_uniform_(v)
+                else:
+                    torch.nn.init.zeros_(v)
 
     @overrides
     def extend_embedder_vocab(self, embedding_sources_mapping: Dict[str, str] = None) -> None:
