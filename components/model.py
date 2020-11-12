@@ -200,7 +200,7 @@ class BiaffineDependencyParser(Model):
                 v.requires_grad_(False)
             elif mode == 'rand':
                 logger.info(f'Randomizing {k}')
-                if k.endswith('weight'):
+                if len(v.size()) > 1:
                     torch.nn.init.xavier_uniform_(v)
                 else:
                     torch.nn.init.zeros_(v)
