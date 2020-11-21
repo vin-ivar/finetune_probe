@@ -166,39 +166,41 @@ class BiaffineDependencyParser(Model):
 
         params_to_freeze = []
 
-        def debug_unfrozen(self, p):
+        def debug_unfrozen(p):
             keys = [i[0] for i in p]
-            print("\n".join([k for (k, v) in self.named_parameters() if k not in keys]))
+            return [(k, v) for (k, v) in self.named_parameters() if k not in keys]
 
         mode, freeze = freeze.split(".")
         if freeze == 'only_kq':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' not in k and 'query' not in k and '_head_sentinel' not in k]
+                                if 'key' in k or 'query' in k]
 
         if freeze == 'only_keys':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' not in k and '_head_sentinel' not in k]
+                                if 'key' in k]
 
         if freeze == 'only_queries':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'query' not in k and '_head_sentinel' not in k]
+                                if 'query' in k]
 
         if freeze == 'only_values':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'value' not in k and '_head_sentinel' not in k]
+                                if 'value' in k]
 
         if freeze == 'only_net':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
         if freeze == "only_dense":
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if '_head_sentinel' not in k and 'dense' not in k or 'pooler' in k]
+                                if 'dense' in k and 'pooler' not in k]
 
-        for k, v in params_to_freeze:
-            if mode == 'freeze':
+        if mode == 'freeze':
+            for k, v in params_to_freeze:
                 logger.info(f'Freezing {k}')
                 v.requires_grad_(False)
-            elif mode == 'rand':
+
+        elif mode == 'rand':
+            for k, v in params_to_freeze:
                 logger.info(f'Randomizing {k}')
                 if len(v.size()) > 1:
                     torch.nn.init.xavier_uniform_(v)

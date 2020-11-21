@@ -24,7 +24,6 @@ class GradientDescentTrainer(Trainer):
     `from_partial_objects`.
 
     [0]: https://tinyurl.com/y5mv44fw
-    [1]: https://nvidia.github.io/apex/amp.html#opt-levels-and-properties
 
     # Parameters
 
@@ -45,7 +44,7 @@ class GradientDescentTrainer(Trainer):
         model to be optimized.
 
     data_loader : `DataLoader`, required.
-        A pytorch `DataLoader` containing your `Dataset`, yielding padded indexed batches.
+        A `DataLoader` containing your `Dataset`, yielding padded indexed batches.
 
         In a typical AllenNLP configuration file, this parameter does not get an entry under the
         "trainer", it gets constructed separately.
@@ -55,7 +54,7 @@ class GradientDescentTrainer(Trainer):
         after `patience` epochs with no improvement. If given, it must be `> 0`.
         If None, early stopping is disabled.
 
-    validation_metric : `str`, optional (default=`"loss"`)
+    validation_metric : `str`, optional (default=`"-loss"`)
         Validation metric to measure for whether to stop training using patience
         and whether to serialize an `is_best` model each epoch. The metric name
         must be prepended with either "+" or "-", which specifies whether the metric
@@ -153,11 +152,8 @@ class GradientDescentTrainer(Trainer):
         be useful to accommodate batches that are larger than the RAM size. Refer [Thomas Wolf's
         post][0] for details on Gradient Accumulation.
 
-    opt_level : `str`, optional, (default = `None`)
-        Each opt_level establishes a set of properties that govern Amp’s implementation of pure or mixed
-        precision training. Must be a choice of `"O0"`, `"O1"`, `"O2"`, or `"O3"`.
-        See [the Apex documentation][1] for
-        more details. If `None`, Amp is not used. Defaults to `None`.
+    use_amp : `bool`, optional, (default = `False`)
+        If `True`, we'll train using [Automatic Mixed Precision](https://pytorch.org/docs/stable/amp.html).
 
     """
 
@@ -165,14 +161,14 @@ class GradientDescentTrainer(Trainer):
         self,
         model: Model,
         optimizer: torch.optim.Optimizer,
-        data_loader: torch.utils.data.DataLoader,
+        data_loader: DataLoader,
         patience: Optional[int] = None,
         validation_metric: str = "-loss",
-        validation_data_loader: torch.utils.data.DataLoader = None,
+        validation_data_loader: DataLoader = None,
         num_epochs: int = 20,
         serialization_dir: Optional[str] = None,
         checkpointer: Checkpointer = None,
-        cuda_device: int = -1,
+        cuda_device: Optional[Union[int, torch.device]] = None,
         grad_norm: Optional[float] = None,
         grad_clipping: Optional[float] = None,
         learning_rate_scheduler: Optional[LearningRateScheduler] = None,
@@ -185,7 +181,7 @@ class GradientDescentTrainer(Trainer):
         local_rank: int = 0,
         world_size: int = 1,
         num_gradient_accumulation_steps: int = 1,
-        opt_level: Optional[str] = None,
+        use_amp: bool = False,
     ) -> None:
         super().__init__(serialization_dir, cuda_device, distributed, local_rank, world_size)
 
@@ -243,20 +239,13 @@ class GradientDescentTrainer(Trainer):
 
         self._num_gradient_accumulation_steps = num_gradient_accumulation_steps
 
-        # Enable automatic mixed precision training with NVIDIA Apex.
-        self._opt_level = opt_level
-        if self._opt_level is not None:
-            if amp is None:
-                raise ConfigurationError(
-                    (
-                        "Apex not installed but opt_level was provided. Please install NVIDIA's Apex to enable"
-                        " automatic mixed precision (AMP) training. See: https://github.com/NVIDIA/apex."
-                    )
-                )
-
-            self.model, self.optimizer = amp.initialize(
-                self.model, self.optimizer, opt_level=self._opt_level
-            )
+        # Enable automatic mixed precision training.
+        self._scaler: Optional[amp.GradScaler] = None
+        self._use_amp = use_amp
+        if self._use_amp:
+            if self.cuda_device == torch.device("cpu"):
+                raise ValueError("Using AMP requires a cuda device")
+            self._scaler = amp.GradScaler()
 
         # Using `DistributedDataParallel`(ddp) brings in a quirk wrt AllenNLP's `Model` interface and its
         # usage. A `Model` object is wrapped by `ddp`, but assigning the wrapped model to `self.model`
@@ -274,21 +263,22 @@ class GradientDescentTrainer(Trainer):
         else:
             self._pytorch_model = self.model
 
-    def rescale_gradients(self) -> Optional[float]:
+    def rescale_gradients(self) -> float:
         """
         Performs gradient rescaling. Is a no-op if gradient rescaling is not enabled.
+
+        Returns the norm of the gradients.
         """
+        parameters_to_clip = [p for p in self.model.parameters() if p.grad is not None]
         if self._grad_norm:
-            if self._opt_level is not None:
-                # See: https://nvidia.github.io/apex/advanced.html#gradient-clipping
-                parameters_to_clip = [
-                    p for p in amp.master_params(self.optimizer) if p.grad is not None
-                ]
-            else:
-                parameters_to_clip = [p for p in self.model.parameters() if p.grad is not None]
+            if self._scaler is not None:
+                # Need to first unscale gradients in order to clip as usual.
+                self._scaler.unscale_(self.optimizer)
             return clip_grad_norm_(parameters_to_clip, self._grad_norm)
         else:
-            return None
+            return torch.norm(
+                torch.stack([torch.norm(p.grad.detach()) for p in parameters_to_clip])
+            )
 
     def batch_outputs(self, batch: TensorDict, for_training: bool) -> Dict[str, torch.Tensor]:
         """
@@ -300,16 +290,14 @@ class GradientDescentTrainer(Trainer):
 
         if for_training:
             try:
+                assert "loss" in output_dict
                 regularization_penalty = self.model.get_regularization_penalty()
-                loss = output_dict["loss"]
 
-                # Handle model without regularization
-                if regularization_penalty == 0.0:
-                    regularization_penalty = loss.new_full(size=[], fill_value=0.0)
+                if regularization_penalty is not None:
+                    output_dict["reg_loss"] = regularization_penalty
+                    output_dict["loss"] += regularization_penalty
 
-                output_dict["reg_loss"] = regularization_penalty
-                output_dict["loss"] += regularization_penalty
-            except KeyError:
+            except AssertionError:
                 if for_training:
                     raise RuntimeError(
                         "The model you are trying to optimize does not contain a"
@@ -332,8 +320,17 @@ class GradientDescentTrainer(Trainer):
             gpu_memory_usage.append((gpu, memory))
             logger.info(f"GPU {gpu} memory usage MB: {memory}")
 
+        regularization_penalty = self.model.get_regularization_penalty()
+
         train_loss = 0.0
-        train_reg_loss = 0.0
+        batch_loss = 0.0
+
+        if regularization_penalty is not None:
+            train_reg_loss = 0.0
+            batch_reg_loss = 0.0
+        else:
+            train_reg_loss = None
+            batch_reg_loss = None
         # Set the model to "train" mode.
         self._pytorch_model.train()
 
@@ -398,21 +395,26 @@ class GradientDescentTrainer(Trainer):
 
             batch_group_outputs = []
             for batch in batch_group:
-                batch_outputs = self.batch_outputs(batch, for_training=True)
-                batch_group_outputs.append(batch_outputs)
-                loss = batch_outputs["loss"]
-                reg_loss = batch_outputs["reg_loss"]
-                if torch.isnan(loss):
-                    raise ValueError("nan loss encountered")
-                loss = loss / len(batch_group)
-                reg_loss = reg_loss / len(batch_group)
-                if self._opt_level is not None:
-                    with amp.scale_loss(loss, self.optimizer) as scaled_loss:
-                        scaled_loss.backward()
+                with amp.autocast(self._use_amp):
+                    batch_outputs = self.batch_outputs(batch, for_training=True)
+                    batch_group_outputs.append(batch_outputs)
+                    loss = batch_outputs.get("loss")
+                    reg_loss = batch_outputs.get("reg_loss")
+                    if torch.isnan(loss):
+                        raise ValueError("nan loss encountered")
+                    loss = loss / len(batch_group)
+
+                    batch_loss = loss.item()
+                    train_loss += batch_loss
+                    if reg_loss is not None:
+                        reg_loss = reg_loss / len(batch_group)
+                        batch_reg_loss = reg_loss.item()
+                        train_reg_loss += batch_reg_loss
+
+                if self._scaler is not None:
+                    self._scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                train_loss += loss.item()
-                train_reg_loss += reg_loss.item()
 
             batch_grad_norm = self.rescale_gradients()
 
@@ -435,11 +437,21 @@ class GradientDescentTrainer(Trainer):
                     name: param.detach().cpu().clone()
                     for name, param in self.model.named_parameters()
                 }
-                self.optimizer.step()
+
+                if self._scaler is not None:
+                    self._scaler.step(self.optimizer)
+                    self._scaler.update()
+                else:
+                    self.optimizer.step()
+
                 for name, param in self.model.named_parameters():
                     param_updates[name].sub_(param.detach().cpu())
             else:
-                self.optimizer.step()
+                if self._scaler is not None:
+                    self._scaler.step(self.optimizer)
+                    self._scaler.update()
+                else:
+                    self.optimizer.step()
 
             # Update moving averages
             if self._moving_average is not None:
@@ -450,6 +462,8 @@ class GradientDescentTrainer(Trainer):
                 self.model,
                 train_loss,
                 train_reg_loss,
+                batch_loss,
+                batch_reg_loss,
                 batches_this_epoch,
                 world_size=self._world_size,
                 cuda_device=self.cuda_device,
@@ -498,11 +512,14 @@ class GradientDescentTrainer(Trainer):
             self.model,
             train_loss,
             train_reg_loss,
-            batches_this_epoch,
+            batch_loss=None,
+            batch_reg_loss=None,
+            num_batches=batches_this_epoch,
             reset=True,
             world_size=self._world_size,
             cuda_device=self.cuda_device,
         )
+
         for (worker, memory) in cpu_memory_usage:
             metrics["worker_" + str(worker) + "_memory_MB"] = memory
         for (gpu_num, memory) in gpu_memory_usage:
@@ -528,10 +545,24 @@ class GradientDescentTrainer(Trainer):
                 "Validation results cannot be calculated without a validation_data_loader"
             )
 
-        val_generator_tqdm = Tqdm.tqdm(validation_data_loader)
+        regularization_penalty = self.model.get_regularization_penalty()
+
+        # Having multiple tqdm bars in case of distributed training will be a mess. Hence only the master's
+        # progress is shown
+        if self._master:
+            val_generator_tqdm = Tqdm.tqdm(validation_data_loader)
+        else:
+            val_generator_tqdm = validation_data_loader
+
         batches_this_epoch = 0
         val_loss = 0
-        val_reg_loss = 0
+        val_batch_loss = 0
+        if regularization_penalty is not None:
+            val_reg_loss = 0
+            val_batch_reg_loss = 0
+        else:
+            val_reg_loss = None
+            val_batch_reg_loss = None
         done_early = False
         for batch in val_generator_tqdm:
             if self._distributed:
@@ -553,31 +584,38 @@ class GradientDescentTrainer(Trainer):
                     )
                     break
 
-            batch_outputs = self.batch_outputs(batch, for_training=False)
-            loss = batch_outputs.get("loss")
-            reg_loss = batch_outputs.get("reg_loss")
-            if loss is not None:
-                # You shouldn't necessarily have to compute a loss for validation, so we allow for
-                # `loss` to be None.  We need to be careful, though - `batches_this_epoch` is
-                # currently only used as the divisor for the loss function, so we can safely only
-                # count those batches for which we actually have a loss.  If this variable ever
-                # gets used for something else, we might need to change things around a bit.
-                batches_this_epoch += 1
-                val_loss += loss.detach().cpu().numpy()
-                if reg_loss is not None:
-                    val_reg_loss += reg_loss.detach().cpu().numpy()
+            with amp.autocast(self._use_amp):
+                batch_outputs = self.batch_outputs(batch, for_training=False)
+                loss = batch_outputs.get("loss")
+                reg_loss = batch_outputs.get("reg_loss")
+                if loss is not None:
+                    # You shouldn't necessarily have to compute a loss for validation, so we allow for
+                    # `loss` to be None.  We need to be careful, though - `batches_this_epoch` is
+                    # currently only used as the divisor for the loss function, so we can safely only
+                    # count those batches for which we actually have a loss.  If this variable ever
+                    # gets used for something else, we might need to change things around a bit.
+                    batches_this_epoch += 1
+                    val_batch_loss = loss.detach().cpu().numpy()
+                    val_loss += val_batch_loss
+                    if reg_loss is not None:
+                        val_batch_reg_loss = reg_loss.detach().cpu().numpy()
+                        val_reg_loss += val_batch_reg_loss
 
             # Update the description with the latest metrics
             val_metrics = training_util.get_metrics(
                 self.model,
                 val_loss,
                 val_reg_loss,
+                val_batch_loss,
+                val_batch_reg_loss,
                 batches_this_epoch,
                 world_size=self._world_size,
                 cuda_device=self.cuda_device,
             )
+
             description = training_util.description_from_metrics(val_metrics)
-            val_generator_tqdm.set_description(description, refresh=False)
+            if self._master:
+                val_generator_tqdm.set_description(description, refresh=False)
 
             for callback in self._batch_callbacks:
                 callback(
@@ -661,7 +699,9 @@ class GradientDescentTrainer(Trainer):
                         self.model,
                         val_loss,
                         val_reg_loss,
-                        num_batches,
+                        batch_loss=None,
+                        batch_reg_loss=None,
+                        num_batches=num_batches,
                         reset=True,
                         world_size=self._world_size,
                         cuda_device=self.cuda_device,
@@ -769,9 +809,6 @@ class GradientDescentTrainer(Trainer):
             training_states["learning_rate_scheduler"] = self._learning_rate_scheduler.state_dict()
         if self._momentum_scheduler is not None:
             training_states["momentum_scheduler"] = self._momentum_scheduler.state_dict()
-        # If model was trained with amp, we should persist the amp state.
-        if self._opt_level is not None:
-            training_states["amp"] = amp.state_dict()
 
         try:
             yield model_state, training_states
@@ -803,12 +840,6 @@ class GradientDescentTrainer(Trainer):
             # No checkpoint to restore, start at 0
             return 0
 
-        # The apex docs recommend calling amp.initialize before calling load_state_dict.
-        if self._opt_level is not None and "amp" in training_state:
-            self.model, self.optimizer = amp.initialize(
-                self.model, self.optimizer, opt_level=self._opt_level
-            )
-            amp.load_state_dict(training_state["amp"])
         self.model.load_state_dict(model_state)
         self.optimizer.load_state_dict(training_state["optimizer"])
         if (
@@ -855,13 +886,13 @@ class GradientDescentTrainer(Trainer):
         patience: int = None,
         validation_metric: str = "-loss",
         num_epochs: int = 20,
-        cuda_device: int = -1,
+        cuda_device: Optional[Union[int, torch.device]] = None,
         grad_norm: float = None,
         grad_clipping: float = None,
         distributed: bool = None,
         world_size: int = 1,
         num_gradient_accumulation_steps: int = 1,
-        opt_level: Optional[str] = None,
+        use_amp: bool = False,
         no_grad: List[str] = None,
         optimizer: Lazy[Optimizer] = None,
         learning_rate_scheduler: Lazy[LearningRateScheduler] = None,
@@ -887,6 +918,13 @@ class GradientDescentTrainer(Trainer):
         If you're not using `FromParams`, you can just construct these arguments in the right order
         yourself in your code and call the constructor directly.
         """
+        if cuda_device is None:
+            from torch import cuda
+
+            if cuda.device_count() > 0:
+                cuda_device = 0
+            else:
+                cuda_device = -1
 
         check_for_gpu(cuda_device)
         if cuda_device >= 0:
@@ -899,12 +937,12 @@ class GradientDescentTrainer(Trainer):
                 if any(re.search(regex, name) for regex in no_grad):
                     parameter.requires_grad_(False)
 
-        common_util.log_frozen_and_tunable_parameter_names(model)
-
         parameters = [[n, p] for n, p in model.named_parameters() if p.requires_grad]
         optimizer_ = optimizer.construct(model_parameters=parameters)
         if not optimizer_:
             optimizer_ = Optimizer.default(parameters)
+
+        common_util.log_frozen_and_tunable_parameter_names(model)
 
         batches_per_epoch: Optional[int]
         try:
@@ -945,5 +983,5 @@ class GradientDescentTrainer(Trainer):
             local_rank=local_rank,
             world_size=world_size,
             num_gradient_accumulation_steps=num_gradient_accumulation_steps,
-            opt_level=opt_level,
+            use_amp=use_amp,
         )
