@@ -171,26 +171,34 @@ class BiaffineDependencyParser(Model):
             return [(k, v) for (k, v) in self.named_parameters() if k not in keys]
 
         mode, freeze = freeze.split(".")
-        if freeze == 'only_kq':
+        if freeze == 'kq':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' in k or 'query' in k]
 
-        if freeze == 'only_keys':
+        if freeze == 'keys':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'key' in k]
 
-        if freeze == 'only_queries':
+        if freeze == 'queries':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'query' in k]
 
-        if freeze == 'only_values':
+        if freeze == 'values':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'value' in k]
 
-        if freeze == 'only_net':
+        if freeze == 'net':
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
-        if freeze == "only_dense":
+        if freeze == "attn_dense":
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'attention.output.dense' in k]
+
+        if freeze == "mlp":
+            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                                if 'dense' in k and 'pooler' not in k and 'attention' not in k]
+
+        if freeze == "dense":
             params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                                 if 'dense' in k and 'pooler' not in k]
 
