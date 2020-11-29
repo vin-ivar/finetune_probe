@@ -207,13 +207,18 @@ class BiaffineDependencyParser(Model):
                 logger.info(f'Freezing {k}')
                 v.requires_grad_(False)
 
-        elif mode == 'rand':
+        elif mode in ['rand', 'randfreeze']:
             for k, v in params_to_freeze:
                 logger.info(f'Randomizing {k}')
                 if len(v.size()) > 1:
                     torch.nn.init.xavier_uniform_(v)
                 else:
                     torch.nn.init.zeros_(v)
+
+                if mode == 'randfreeze':
+                    logger.info(f'Freezing {k}')
+                    v.requires_grad_(False)
+
 
     @overrides
     def extend_embedder_vocab(self, embedding_sources_mapping: Dict[str, str] = None) -> None:
