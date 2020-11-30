@@ -154,9 +154,12 @@ class BiaffineDependencyParser(Model):
         params_to_kill = self.get_params_to_kill(component)
         if layer != 'x':
             params_to_kill = [i for i in params_to_kill if f'.{layer}.' in i]
+            if selector == 'not':
+                params_to_kill = [i for i in params_to_kill if f'.{layer}.' not in i]
 
-        if selector == 'not':
-            params_to_kill = flip_params(params_to_kill)
+        else:
+            if selector == 'not':
+                params_to_kill = flip_params(params_to_kill)
 
         params_to_kill = [(k, v) for (k, v) in params_to_kill if k != '_head_sentinel' and 'pooler' not in k]
 
