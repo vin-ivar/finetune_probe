@@ -77,9 +77,9 @@ class BiaffineDependencyParser(Model):
     def __init__(
         self,
         vocab: Vocabulary,
-        freeze: str,
         lca: str,
         lca_mode: str,
+        kill: str,
         text_field_embedder: TextFieldEmbedder,
         tag_representation_dim: int,
         arc_representation_dim: int,
@@ -104,11 +104,6 @@ class BiaffineDependencyParser(Model):
             self.writer = tensorboard.SummaryWriter(lca)
 
         encoder_dim = text_field_embedder.get_output_dim()
-
-        # self.head_arc_feedforward = arc_feedforward or FeedForward(
-        #     encoder_dim, 1, arc_representation_dim, Activation.by_name("elu")()
-        # )
-        # self.child_arc_feedforward = copy.deepcopy(self.head_arc_feedforward)
 
         self.arc_attention = BilinearMatrixAttention(
             encoder_dim, encoder_dim, use_input_biases=True
@@ -136,19 +131,6 @@ class BiaffineDependencyParser(Model):
         if pos_tag_embedding is not None:
             representation_dim += pos_tag_embedding.get_output_dim()
 
-        # check_dimensions_match(
-        #     tag_representation_dim,
-        #     self.head_tag_feedforward.get_output_dim(),
-        #     "tag representation dim",
-        #     "tag feedforward output dim",
-        # )
-        # check_dimensions_match(
-        #     arc_representation_dim,
-        #     self.head_arc_feedforward.get_output_dim(),
-        #     "arc representation dim",
-        #     "arc feedforward output dim",
-        # )
-
         self.use_mst_decoding_for_validation = use_mst_decoding_for_validation
 
         tags = self.vocab.get_token_to_index_vocabulary("pos")
@@ -164,61 +146,58 @@ class BiaffineDependencyParser(Model):
         self._attachment_scores = AttachmentScores()
         initializer(self)
 
-        params_to_freeze = []
-
-        def debug_unfrozen(p):
+        def flip_params(p):
             keys = [i[0] for i in p]
-            return [(k, v) for (k, v) in self.named_parameters() if k not in keys]
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if k not in keys]
 
-        mode, freeze = freeze.split(".")
-        if freeze == 'kq':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' in k or 'query' in k]
+        mode, selector, component, layer = kill.split(".")
+        params_to_kill = self.get_params_to_kill(component)
+        if layer != 'x':
+            params_to_kill = [i for i in params_to_kill if f'.{layer}.' in i]
 
-        if freeze == 'keys':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'key' in k]
+        if selector == 'not':
+            params_to_kill = flip_params(params_to_kill)
 
-        if freeze == 'queries':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'query' in k]
+        params_to_kill = [(k, v) for (k, v) in params_to_kill if k != '_head_sentinel' and 'pooler' not in k]
 
-        if freeze == 'values':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'value' in k]
-
-        if freeze == 'net':
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
-
-        if freeze == "attn_dense":
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'attention.output.dense' in k]
-
-        if freeze == "mlp":
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'dense' in k and 'pooler' not in k and 'attention' not in k]
-
-        if freeze == "dense":
-            params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-                                if 'dense' in k and 'pooler' not in k]
-
-        if mode == 'freeze':
-            for k, v in params_to_freeze:
-                logger.info(f'Freezing {k}')
-                v.requires_grad_(False)
-
-        elif mode in ['rand', 'randfreeze']:
-            for k, v in params_to_freeze:
+        if mode in ['rand', 'kill']:
+            for k, v in params_to_kill:
                 logger.info(f'Randomizing {k}')
                 if len(v.size()) > 1:
                     torch.nn.init.xavier_uniform_(v)
                 else:
                     torch.nn.init.zeros_(v)
 
-                if mode == 'randfreeze':
-                    logger.info(f'Freezing {k}')
-                    v.requires_grad_(False)
+        elif mode in ['freeze', 'kill']:
+            for k, v in params_to_kill:
+                logger.info(f'Freezing {k}')
+                v.requires_grad_(False)
 
+    def get_params_to_kill(self, component):
+        if component == 'bert':
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
+
+        if component == 'keys':
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'key' in k]
+
+        if component == 'queries':
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'query' in k]
+
+        if component == 'kq':
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'key' in k or 'query' in k]
+
+        if component == 'values':
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'value' in k]
+
+        if component == "attn_dense":
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'attention.output.dense' in k]
+
+        if component == "mlp":
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                    if 'dense' in k and 'attention' not in k]
+
+        if component == "dense":
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'dense' in k]
 
     @overrides
     def extend_embedder_vocab(self, embedding_sources_mapping: Dict[str, str] = None) -> None:

@@ -35,9 +35,12 @@ def main():
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--config', action='store', default='configs/cpu')
     parser.add_argument('--save', action='store', default='experiments/models/default/test/deep')
-    parser.add_argument('--freeze', action='store', type=str)
+    # kill args
+    parser.add_argument('--kill', action='store', type=str)
+    # LCA args
     parser.add_argument('--lca', action='store', type=str)
     parser.add_argument('--lca_mode', action='store', type=str)
+    # other
     parser.add_argument('--epochs', action='store', type=str)
     args = parser.parse_args()
 
@@ -49,10 +52,11 @@ def main():
     size = '1024' if args.model == 'xlmr' else '768'
     logger.info(f'Using model {model_name}')
 
-    config = Params.from_file(args.config, ext_vars={'train_path': args.train, 'val_path': args.val,
-                                                     'model_name': model_name, 'model_size': size,
-                                                     'lca': args.lca, 'lca_mode': args.lca_mode, 'freeze': args.freeze, 'epochs': args.epochs})
+    var_dict = {'train_path': args.train, 'val_path': args.val, 'epochs': args.epochs,
+                'model_name': model_name, 'model_size': size,
+                'kill': args.kill, 'lca': args.lca, 'lca_mode': args.lca_mode}
 
+    config = Params.from_file(args.config, ext_vars=var_dict)
     model = train_model(config, args.save, force=True)
 
 
