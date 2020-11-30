@@ -168,7 +168,7 @@ class BiaffineDependencyParser(Model):
                 else:
                     torch.nn.init.zeros_(v)
 
-        elif mode in ['freeze', 'kill']:
+        if mode in ['freeze', 'kill']:
             for k, v in params_to_kill:
                 logger.info(f'Freezing {k}')
                 v.requires_grad_(False)
