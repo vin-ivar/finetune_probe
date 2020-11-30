@@ -153,9 +153,9 @@ class BiaffineDependencyParser(Model):
         mode, selector, component, layer = kill.split(".")
         params_to_kill = self.get_params_to_kill(component)
         if layer != 'x':
-            params_to_kill = [i for i in params_to_kill if f'.{layer}.' in i]
+            params_to_kill = [(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k]
             if selector == 'not':
-                params_to_kill = [i for i in params_to_kill if f'.{layer}.' not in i]
+                params_to_kill = [(k, v) for (k, v) in params_to_kill if f'.{layer}.' not in k]
 
         else:
             if selector == 'not':
