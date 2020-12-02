@@ -146,23 +146,9 @@ class BiaffineDependencyParser(Model):
         self._attachment_scores = AttachmentScores()
         initializer(self)
 
-        def flip_params(p):
-            keys = [i[0] for i in p]
-            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if k not in keys]
-
         mode, selector, component, layer = kill.split(".")
         params_to_kill = self.get_params_to_kill(component)
-        if layer != 'x':
-            if selector == 'not':
-                params_to_kill = [(k, v) for (k, v) in params_to_kill if f'.{layer}.' not in k]
-
-            else:
-                params_to_kill = [(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k]
-
-        else:
-            if selector == 'not':
-                params_to_kill = flip_params(params_to_kill)
-
+        params_to_kill = self.get_layer_to_kill(selector, layer, params_to_kill)
         params_to_kill = [(k, v) for (k, v) in params_to_kill if k != '_head_sentinel' and 'pooler' not in k]
 
         if mode in ['rand', 'kill']:
@@ -177,6 +163,27 @@ class BiaffineDependencyParser(Model):
             for k, v in params_to_kill:
                 logger.info(f'Freezing {k}')
                 v.requires_grad_(False)
+
+    def get_layer_to_kill(self, selector, layer, params_to_kill):
+        ranges = {'bot6': range(0, 7), 'top6': range(7, 13), 'mid6': range(4, 10)}
+
+        if layer in ['bot6', 'top6', 'mid6']:
+            acc = []
+            for layer in ranges[layer]:
+                acc.extend([(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k])
+
+            return acc
+
+        elif layer != 'x':
+            if selector == 'not':
+                return [(k, v) for (k, v) in params_to_kill if f'.{layer}.' not in k]
+
+            else:
+                return [(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k]
+
+        else:
+            if selector == 'not':
+                return self.flip_params(params_to_kill)
 
     def get_params_to_kill(self, component):
         if component == 'bert':
@@ -203,6 +210,10 @@ class BiaffineDependencyParser(Model):
 
         if component == "dense":
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'dense' in k]
+
+    def flip_params(self, p):
+        keys = [i[0] for i in p]
+        return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if k not in keys]
 
     @overrides
     def extend_embedder_vocab(self, embedding_sources_mapping: Dict[str, str] = None) -> None:
