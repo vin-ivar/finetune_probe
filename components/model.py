@@ -295,6 +295,32 @@ class BiaffineDependencyParser(Model):
                               ('key' in k or 'query' in k or 'value' in k)}
         self.step_counter += 1
 
+    def layerwise_lca(self):
+        sum_acc, numel_acc = {}, {}
+        for k, v in self._saved_params.items():
+            component = self.kqv_dense(k)
+            if not component:
+                continue
+
+            layer = k.split(".")[5]
+            param_dict = dict(self.named_parameters())
+            try:
+                lca = (param_dict[k] - v) * param_dict[k].grad
+            except TypeError:
+                continue
+
+            total, numel = lca.sum().item(), lca.numel()
+            sum_acc.setdefault(component, []).append(total)
+            numel_acc.setdefault(component, []).append(numel)
+
+        for component in sum_acc.keys():
+            self.writer.add_scalar(f'{component}_{layer}/sum', sum(sum_acc[component]), self.step_counter)
+            self.writer.add_scalar(f'{component}_{layer}/numel', sum(numel_acc[component]), self.step_counter)
+
+        self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
+                              if v.requires_grad and 'bias' not in k and 'dense' in k and 'attention' not in k}
+        self.step_counter += 1
+
     def component_lca(self):
         sum_acc, numel_acc = {}, {}
         for k, v in self._saved_params.items():
@@ -322,6 +348,8 @@ class BiaffineDependencyParser(Model):
     def log_lca(self):
         if self.lca_mode == 'head_layer':
             self.headed_lca()
+        if self.lca_mode == 'layerwise':
+            self.layerwise_lca()
         elif self.lca_mode == 'componentwise':
             self.component_lca()
 
