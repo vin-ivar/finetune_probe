@@ -165,9 +165,10 @@ class BiaffineDependencyParser(Model):
                 v.requires_grad_(False)
 
     def get_layer_to_kill(self, selector, layer, params_to_kill):
-        ranges = {'bot6': range(0, 7), 'top6': range(7, 13), 'mid6': range(4, 10)}
+        ranges = {'bot6': range(0, 6), 'top6': range(6, 12), 'mid6': range(3, 9),
+                  'bot3': range(0, 3), 'top3': range(9, 12), 'mid3': range(4, 7)}
 
-        if layer in ['bot6', 'top6', 'mid6']:
+        if layer in ['bot6', 'top6', 'mid6', 'bot3', 'top3', 'mid3']:
             acc = []
             for layer in ranges[layer]:
                 acc.extend([(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k])
