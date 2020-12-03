@@ -186,9 +186,14 @@ class BiaffineDependencyParser(Model):
             if selector == 'not':
                 return self.flip_params(params_to_kill)
 
+        return params_to_kill
+
     def get_params_to_kill(self, component):
         if component == 'bert':
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
+
+        if component == 'embeds':
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'embeddings' in k]
 
         if component == 'keys':
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'key' in k]
@@ -304,6 +309,8 @@ class BiaffineDependencyParser(Model):
                 continue
 
             layer = k.split(".")[5]
+            component = f'{component}_{layer}'
+
             param_dict = dict(self.named_parameters())
             try:
                 lca = (param_dict[k] - v) * param_dict[k].grad
@@ -315,8 +322,8 @@ class BiaffineDependencyParser(Model):
             numel_acc.setdefault(component, []).append(numel)
 
         for component in sum_acc.keys():
-            self.writer.add_scalar(f'{component}_{layer}/sum', sum(sum_acc[component]), self.step_counter)
-            self.writer.add_scalar(f'{component}_{layer}/numel', sum(numel_acc[component]), self.step_counter)
+            self.writer.add_scalar(f'{component}/sum', sum(sum_acc[component]), self.step_counter)
+            self.writer.add_scalar(f'{component}/numel', sum(numel_acc[component]), self.step_counter)
 
         self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
                               if v.requires_grad and 'bias' not in k and 'dense' in k and 'attention' not in k}
