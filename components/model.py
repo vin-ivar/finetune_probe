@@ -149,6 +149,7 @@ class BiaffineDependencyParser(Model):
         mode, component, selector = kill.split(".")
         params_to_kill = self.get_component_params(component)
 
+        # layers are indexed 0-11 in mBERT
         if selector not in ['not', 'all']:
             params_to_kill = self.filter_layer_params(selector, params_to_kill)
 
