@@ -146,11 +146,17 @@ class BiaffineDependencyParser(Model):
         self._attachment_scores = AttachmentScores()
         initializer(self)
 
-        mode, selector, component, layer = kill.split(".")
-        params_to_kill = self.get_params_to_kill(component)
-        params_to_kill = self.get_layer_to_kill(selector, layer, params_to_kill)
-        params_to_kill = [(k, v) for (k, v) in params_to_kill if k != '_head_sentinel' and 'pooler' not in k]
+        mode, component, selector = kill.split(".")
+        params_to_kill = self.get_component_params(component)
 
+        if selector not in ['not', 'all']:
+            params_to_kill = self.filter_layer_params(selector, params_to_kill)
+
+        # killing componentwise; negation inverts components
+        elif selector == 'not':
+            params_to_kill = self.flip_params(params_to_kill)
+
+        params_to_kill = [(k, v) for (k, v) in params_to_kill if k != '_head_sentinel' and 'pooler' not in k]
         if mode in ['rand', 'kill']:
             for k, v in params_to_kill:
                 logger.info(f'Randomizing {k}')
@@ -164,31 +170,25 @@ class BiaffineDependencyParser(Model):
                 logger.info(f'Freezing {k}')
                 v.requires_grad_(False)
 
-    def get_layer_to_kill(self, selector, layer, params_to_kill):
-        ranges = {'bot6': range(0, 6), 'top6': range(6, 12), 'mid6': range(3, 9),
-                  'bot3': range(0, 3), 'top3': range(9, 12), 'mid3': range(4, 7)}
+    def filter_layer_params(self, selector, params_to_kill):
+        out = []
 
-        if layer in ['bot6', 'top6', 'mid6', 'bot3', 'top3', 'mid3']:
-            acc = []
-            for layer in ranges[layer]:
-                acc.extend([(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k])
+        if '~' in selector:
+            layer = selector[1:]
+            out.extend([(k, v) for (k, v) in params_to_kill if f'.{layer}.' not in k])
 
-            return acc
-
-        elif layer != 'x':
-            if selector == 'not':
-                return [(k, v) for (k, v) in params_to_kill if f'.{layer}.' not in k]
-
-            else:
-                return [(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k]
+        elif '-' in selector:
+            lo, hi = selector.split("-")
+            for layer in range(int(lo), int(hi) + 1):
+                out.extend([(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k])
 
         else:
-            if selector == 'not':
-                return self.flip_params(params_to_kill)
+            layer = selector
+            out.extend([(k, v) for (k, v) in params_to_kill if f'.{layer}.' in k])
 
-        return params_to_kill
+        return out
 
-    def get_params_to_kill(self, component):
+    def get_component_params(self, component):
         if component == 'bert':
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
