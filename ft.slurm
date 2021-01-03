@@ -7,7 +7,7 @@
 
 set -o errexit
 source ~/.bashrc
-conda activate nlp
+conda activate allennlp
 
 export UD="/projappl/project_2000582/corpora/ud"
 export savedir="/scratch/project_2000582/naacl"
