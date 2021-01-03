@@ -360,6 +360,8 @@ class BiaffineDependencyParser(Model):
             self.layerwise_lca()
         elif self.lca_mode == 'componentwise':
             self.component_lca()
+        elif self.lca_mode == 'none':
+            return
 
     @overrides
     def forward(
