@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account=nn9447k
+#SBATCH --account=nn9851k
 #SBATCH --partition=accel
 #SBATCH --gres=gpu:1
 #SBATCH --time=100:00:00
