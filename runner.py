@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from _jsonnet import evaluate_file, evaluate_snippet
 
 from allennlp.commands.train import train_model
 from allennlp.common import Params, Tqdm
