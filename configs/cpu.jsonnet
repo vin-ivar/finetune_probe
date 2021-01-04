@@ -63,5 +63,8 @@
         "type": "sgd",
      	"lr": 0.0001,
       }
-    }
+    },
+    "pytorch_seed": std.extVar("seed"),
+    "random_seed": std.extVar("seed"),
+    "numpy_seed": std.extVar("seed"),
   }

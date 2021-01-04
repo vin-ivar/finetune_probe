@@ -42,6 +42,7 @@ def main():
     parser.add_argument('--lca_mode', action='store', type=str)
     # other
     parser.add_argument('--epochs', action='store', type=str)
+    parser.add_argument('--seed', action='store', type=str)
     args = parser.parse_args()
 
     import_module_and_submodules("components.loader")
@@ -52,7 +53,7 @@ def main():
     size = '1024' if args.model == 'xlmr' else '768'
     logger.info(f'Using model {model_name}')
 
-    var_dict = {'train_path': args.train, 'val_path': args.val, 'epochs': args.epochs,
+    var_dict = {'train_path': args.train, 'val_path': args.val, 'epochs': args.epochs, 'seed': args.seed,
                 'model_name': model_name, 'model_size': size,
                 'kill': args.kill, 'lca': args.lca, 'lca_mode': args.lca_mode}
 
