@@ -2,7 +2,7 @@
 #SBATCH --account=project_2000582
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:v100:1
-#SBATCH --time=24:00:00
+#SBATCH --time=3:00:00
 #SBATCH --mem-per-cpu=16G
 
 set -o errexit
