@@ -147,8 +147,16 @@ class BiaffineDependencyParser(Model):
         initializer(self)
 
         mode, component, selector = kill.split(".")
-        params_to_kill = self.get_component_params(component)
+        weight, bias = False, False
+        if component.endswith('_b'):
+            component = component.split('_')[0]
+            bias = True
 
+        if component.endswith('_W'):
+            component = component.split('_')[0]
+            weight = True
+
+        params_to_kill = self.get_component_params(component)
         # layers are indexed 0-11 in mBERT
         if selector not in ['not', 'all']:
             params_to_kill = self.filter_layer_params(selector, params_to_kill)
@@ -158,6 +166,11 @@ class BiaffineDependencyParser(Model):
             params_to_kill = self.flip_params(params_to_kill)
 
         params_to_kill = [(k, v) for (k, v) in params_to_kill if k != '_head_sentinel' and 'pooler' not in k]
+        if bias:
+            params_to_kill = [(k, v) for (k, v) in params_to_kill if 'bias' in k]
+        if weight:
+            params_to_kill = [(k, v) for (k, v) in params_to_kill if 'weight' in k]
+
         if mode in ['rand', 'kill']:
             for k, v in params_to_kill:
                 logger.info(f'Randomizing {k}')
@@ -190,7 +203,7 @@ class BiaffineDependencyParser(Model):
         return out
 
     def get_component_params(self, component):
-        if component == 'bert':
+        if component == 'all':
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()]
 
         if component == 'embeds':

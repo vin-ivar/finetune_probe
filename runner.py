@@ -43,7 +43,7 @@ def main():
     parser.add_argument('--lca_mode', action='store', type=str)
     # other
     parser.add_argument('--epochs', action='store', type=str)
-    parser.add_argument('--seed', action='store', type=str)
+    parser.add_argument('--seed', action='store', type=str, default='42')
     args = parser.parse_args()
 
     import_module_and_submodules("components.loader")
