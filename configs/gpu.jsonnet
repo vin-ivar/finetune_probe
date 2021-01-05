@@ -65,7 +65,7 @@
         "betas": [0.9, 0.9]
       }
     },
-	"pytorch_seed": std.extVar("seed"),
+    "pytorch_seed": std.extVar("seed"),
     "random_seed": std.extVar("seed"),
     "numpy_seed": std.extVar("seed"),
   }
