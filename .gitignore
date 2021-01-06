@@ -131,3 +131,4 @@ dmypy.json
 # custom
 experiments/models
 experiments/stats
+experiments/logs
