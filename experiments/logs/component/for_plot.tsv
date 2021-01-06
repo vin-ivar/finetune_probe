@@ -35,6 +35,7 @@ en_ewt	keys	0	90.79
 en_ewt	keys	0-1	89.41
 en_ewt	keys	0-2	89.52
 en_ewt	keys	0-3	89.57
+en_ewt	keys	0-6	86.36
 en_ewt	keys	0-7	86.27
 en_ewt	keys	0-10	74.85
 en_ewt	keys	0-11	86.16
@@ -44,6 +45,7 @@ en_ewt	queries	0-2	90.30
 en_ewt	queries	0-3	89.61
 en_ewt	queries	0-6	86.41
 en_ewt	queries	0-7	84.98
+en_ewt	queries	0-10	81.15
 en_ewt	queries	0-11	84.35
 en_ewt	values	0	90.55
 en_ewt	values	0-1	90.66
@@ -51,6 +53,7 @@ en_ewt	values	0-2	88.95
 en_ewt	values	0-3	89.39
 en_ewt	values	0-6	86.19
 en_ewt	values	0-7	81.46
+en_ewt	values	0-10	82.86
 en_ewt	values	0-11	85.36
 en_ewt	attn_dense	0	90.81
 en_ewt	attn_dense	0-1	89.74
@@ -65,6 +68,8 @@ it_isdt	keys	0-1	93.99
 it_isdt	keys	0-2	93.74
 it_isdt	keys	0-3	92.42
 it_isdt	keys	0-6	88.99
+it_isdt	keys	0-7	84.62
+it_isdt	keys	0-10	84.69
 it_isdt	keys	0-11	78.66
 it_isdt	queries	0	94.08
 it_isdt	queries	0-1	93.35
@@ -79,6 +84,7 @@ it_isdt	values	0-1	93.19
 it_isdt	values	0-2	93.79
 it_isdt	values	0-3	92.13
 it_isdt	values	0-6	90.34
+it_isdt	values	0-7	88.43
 it_isdt	values	0-10	85.89
 it_isdt	values	0-11	88.11
 it_isdt	attn_dense	0	94.13
@@ -87,4 +93,5 @@ it_isdt	attn_dense	0-2	93.61
 it_isdt	attn_dense	0-3	92.14
 it_isdt	attn_dense	0-6	89.24
 it_isdt	attn_dense	0-7	91.12
+it_isdt	attn_dense	0-10	89.53
 it_isdt	attn_dense	0-11	91.62
