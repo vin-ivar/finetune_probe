@@ -35,7 +35,7 @@ def main():
     parser.add_argument('--val', action='store')
     parser.add_argument('--model', action='store', default='bert')
     parser.add_argument('--config', action='store', default='configs/cpu')
-    parser.add_argument('--save', action='store', default='experiments/models/default/test/deep')
+    parser.add_argument('--save', action='store', default='experiments/models')
     # kill args
     parser.add_argument('--kill', action='store', type=str)
     # LCA args

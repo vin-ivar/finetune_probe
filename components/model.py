@@ -149,11 +149,11 @@ class BiaffineDependencyParser(Model):
         mode, component, selector = kill.split(".")
         weight, bias = False, False
         if component.endswith('_b'):
-            component = component.split('_')[0]
+            component = '_'.join(component.split('_')[:-1])
             bias = True
 
         if component.endswith('_W'):
-            component = component.split('_')[0]
+            component = '_'.join(component.split('_')[:-1])
             weight = True
 
         params_to_kill = self.get_component_params(component)
@@ -171,15 +171,18 @@ class BiaffineDependencyParser(Model):
         if weight:
             params_to_kill = [(k, v) for (k, v) in params_to_kill if 'weight' in k]
 
-        if mode in ['rand', 'kill']:
+        if mode in ['rand', 'kill', 'drop']:
             for k, v in params_to_kill:
                 logger.info(f'Randomizing {k}')
                 if len(v.size()) > 1:
-                    torch.nn.init.xavier_uniform_(v)
+                    if mode == 'drop':
+                        torch.nn.init.ones_(v)
+                    else:
+                        torch.nn.init.xavier_uniform_(v)
                 else:
                     torch.nn.init.zeros_(v)
 
-        if mode in ['freeze', 'kill']:
+        if mode in ['freeze', 'kill', 'drop']:
             for k, v in params_to_kill:
                 logger.info(f'Freezing {k}')
                 v.requires_grad_(False)
@@ -228,7 +231,11 @@ class BiaffineDependencyParser(Model):
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
                     if 'dense' in k and 'attention' not in k]
 
-        if component == "dense":
+        if component == "mlp_norm":
+            return [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
+                    if ('dense' in k or 'LayerNorm' in k) and 'attention' not in k]
+
+        if component == "all_dense":
             return [(k, v) for (k, v) in self.text_field_embedder.named_parameters() if 'dense' in k]
 
     def flip_params(self, p):

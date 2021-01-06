@@ -11,12 +11,10 @@ def main():
 
     if args.exp == 'mlp':
         df = pd.read_csv('experiments/logs/mlp/for_plot.tsv', sep='\t', header=0)
-        df['step'] = pd.to_numeric(df['step'])
         helpers.mlp_heatmap(df)
 
     if args.exp == 'component':
         df = pd.read_csv('experiments/logs/component/for_plot.tsv', sep='\t', header=0)
-        df['step'] = pd.to_numeric(df['step'])
         helpers.component_heatmap(df)
 
 
