@@ -1,7 +1,6 @@
 #!/bin/bash
 mkdir -p experiments/logs/$4
 mkdir -p experiments/stats
-mkdir -p $SCRATCH/naacl
 
 if [ `whoami` == "ravishan" ]; then
 	export server="puhti"
