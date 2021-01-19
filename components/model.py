@@ -425,6 +425,7 @@ class BiaffineDependencyParser(Model):
                 head_indices,
                 head_tags,
                 evaluation_mask,
+                metadata
             )
 
         output_dict = {

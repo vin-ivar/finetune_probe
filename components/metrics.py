@@ -18,6 +18,9 @@ class DeprelScores(Metric):
         self._total_words = 0.0
         self._total_sentences = 0.0
 
+        self.correct_accumulator = torch.zeros(len(vocab)).long()
+        self.gold_accumulator = torch.zeros(len(vocab)).long()
+
         self._ignore_classes: List[int] = ignore_classes or []
         self._vocab = vocab
 
@@ -28,6 +31,7 @@ class DeprelScores(Metric):
         gold_indices: torch.Tensor,
         gold_labels: torch.Tensor,
         mask: Optional[torch.BoolTensor] = None,
+        metadata = None
     ):
         """
         # Parameters
@@ -56,8 +60,6 @@ class DeprelScores(Metric):
         predicted_labels = predicted_labels.long()
         gold_indices = gold_indices.long()
         gold_labels = gold_labels.long()
-        correct_accumulator = torch.zeros(len(self._vocab)).long()
-        gold_accumulator = torch.zeros(len(self._vocab)).long()
 
         # Multiply by a mask denoting locations of
         # gold labels which we should ignore.
@@ -72,6 +74,8 @@ class DeprelScores(Metric):
         labeled_exact_match = (correct_labels_and_indices + ~mask).prod(dim=-1)
         total_sentences = correct_indices.size(0)
         total_words = correct_indices.numel() - (~mask).sum()
+
+        correct_per_label = correct_indices * gold_labels
 
         if is_distributed():
             dist.all_reduce(correct_indices, op=dist.ReduceOp.SUM)
@@ -91,6 +95,11 @@ class DeprelScores(Metric):
         self._exact_labeled_correct += labeled_exact_match.sum()
         self._total_sentences += total_sentences
         self._total_words += total_words
+
+        correct_num, correct_count = torch.unique(correct_per_label, return_counts=True)
+        gold_num, gold_count = torch.unique(gold_labels, return_counts=True)
+        self.correct_accumulator.index_add_(0, correct_num, correct_count)
+        self.gold_accumulator.index_add_(0, gold_num, gold_count)
 
     def get_metric(
         self,
@@ -122,6 +131,12 @@ class DeprelScores(Metric):
             "UEM": unlabeled_exact_match,
             "LEM": labeled_exact_match,
         }
+
+        for i in range(len(self._vocab)):
+            score = (self.correct_accumulator[i] / self.gold_accumulator[i]).item()
+            metrics[self._vocab[i]] = score
+        metrics.pop('punct')
+
         return metrics
 
     @overrides
