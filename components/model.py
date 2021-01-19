@@ -143,7 +143,8 @@ class BiaffineDependencyParser(Model):
             "Ignoring words with these POS tags for evaluation."
         )
 
-        self._attachment_scores = DeprelScores(self.vocab.get_index_to_token_vocabulary("head_tags"))
+        self._attachment_scores = DeprelScores(self.vocab.get_index_to_token_vocabulary("head_tags"),
+                                               self.tag_bilinear.weight.device)
         initializer(self)
 
         mode, component, selector = kill.split(".")

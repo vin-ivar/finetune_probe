@@ -10,7 +10,7 @@ from allennlp.training.metrics.metric import Metric
 
 @Metric.register("per_deprel_scores")
 class DeprelScores(Metric):
-    def __init__(self, vocab: dict, ignore_classes: List[int] = None) -> None:
+    def __init__(self, vocab: dict, device, ignore_classes: List[int] = None) -> None:
         self._labeled_correct = 0.0
         self._unlabeled_correct = 0.0
         self._exact_labeled_correct = 0.0
@@ -18,8 +18,8 @@ class DeprelScores(Metric):
         self._total_words = 0.0
         self._total_sentences = 0.0
 
-        self.correct_accumulator = torch.zeros(len(vocab)).long()
-        self.gold_accumulator = torch.zeros(len(vocab)).long()
+        self.correct_accumulator = torch.zeros(len(vocab)).long().to(device)
+        self.gold_accumulator = torch.zeros(len(vocab)).long().to(device)
 
         self._ignore_classes: List[int] = ignore_classes or []
         self._vocab = vocab
