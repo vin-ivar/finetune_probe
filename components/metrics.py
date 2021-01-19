@@ -98,6 +98,12 @@ class DeprelScores(Metric):
 
         correct_num, correct_count = torch.unique(correct_per_label, return_counts=True)
         gold_num, gold_count = torch.unique(gold_labels, return_counts=True)
+
+        correct_num = correct_num.to(self.correct_accumulator.device)
+        correct_count = correct_count.to(self.correct_accumulator.device)
+        gold_num = gold_num.to(self.gold_accumulator.device)
+        gold_count = gold_count.to(self.gold_accumulator.device)
+
         self.correct_accumulator.index_add_(0, correct_num, correct_count)
         self.gold_accumulator.index_add_(0, gold_num, gold_count)
 
