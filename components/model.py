@@ -19,7 +19,7 @@ from allennlp.nn.util import (
     get_lengths_from_binary_sequence_mask,
 )
 from allennlp.nn.util import get_range_vector
-from allennlp.training.metrics import AttachmentScores
+from components.metrics import DeprelScores
 from overrides import overrides
 from torch.nn.modules import Dropout
 from torch.utils import tensorboard
@@ -143,7 +143,7 @@ class BiaffineDependencyParser(Model):
             "Ignoring words with these POS tags for evaluation."
         )
 
-        self._attachment_scores = AttachmentScores()
+        self._attachment_scores = DeprelScores(self.vocab.get_index_to_token_vocabulary("head_tags"))
         initializer(self)
 
         mode, component, selector = kill.split(".")

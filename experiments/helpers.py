@@ -4,14 +4,14 @@ import pandas as pd
 
 
 def component_heatmap(df):
-    components = df['component'].unique()
-
+    components = df['lang'].unique()
+    layers = ['0', '0-1', '0-2', '0-6', '0-7', '0-10', '0-11']
     fig = make_subplots(rows=1, cols=len(components), subplot_titles=components)
     for c, component in enumerate(components):
-        current = df[df['component'] == component]
-        current = current.pivot(index='layer', columns='lang', values='score')
+        current = df[df['lang'] == component]
+        current = current.pivot(index='layer', columns='component', values='score').reindex(layers)
         fig.add_trace(go.Heatmap(z=current, x=current.columns, y=current.index,
-                                 zmin=0, zmax=100, showlegend=not c, colorscale='RdBu'),
+                                 zmin=0, zmax=100, showlegend=not c, colorscale='Blues'),
                       row=1, col=c+1)
 
     fig.show()
