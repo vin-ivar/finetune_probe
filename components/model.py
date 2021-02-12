@@ -147,6 +147,9 @@ class BiaffineDependencyParser(Model):
                                                self.tag_bilinear.weight.device)
         initializer(self)
 
+        if kill == "none":
+            return
+
         mode, component, selector = kill.split(".")
         weight, bias = False, False
         if component.endswith('_b'):
@@ -385,6 +388,37 @@ class BiaffineDependencyParser(Model):
         elif self.lca_mode == 'none':
             return
 
+    def distance_between_pairs(self, observation, i, j, head_indices=None):
+        if i == j:
+            return 0
+
+        head_indices = observation.tolist()
+        i_path = [i + 1]
+        j_path = [j + 1]
+        i_head = i + 1
+        j_head = j + 1
+        while True:
+            if not (i_head == 0 and (i_path == [i + 1] or i_path[-1] == 0)):
+                i_head = head_indices[i_head - 1]
+                i_path.append(i_head)
+            if not (j_head == 0 and (j_path == [j + 1] or j_path[-1] == 0)):
+                j_head = head_indices[j_head - 1]
+                j_path.append(j_head)
+            if i_head in j_path:
+                j_path_length = j_path.index(i_head)
+                i_path_length = len(i_path) - 1
+                break
+            elif j_head in i_path:
+                i_path_length = i_path.index(j_head)
+                j_path_length = len(j_path) - 1
+                break
+            elif i_head == j_head:
+                i_path_length = len(i_path) - 1
+                j_path_length = len(j_path) - 1
+                break
+        total_length = j_path_length + i_path_length
+        return total_length
+
     @overrides
     def forward(
         self,  # type: ignore
@@ -396,18 +430,45 @@ class BiaffineDependencyParser(Model):
         head_indices: torch.LongTensor = None,
     ) -> Dict[str, torch.Tensor]:
         embedded_text_input = self.text_field_embedder(words)
-        embedded_text_input = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
+        transformed = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
 
-        if pos_tags is not None and self._pos_tag_embedding is not None:
-            embedded_pos_tags = self._pos_tag_embedding(pos_tags)
-            embedded_text_input = torch.cat([embedded_text_input, embedded_pos_tags], -1)
-        elif self._pos_tag_embedding is not None:
-            raise ConfigurationError("Model uses a POS embedding, but no POS tags were passed.")
+        seq_len = transformed.size(1)
+        transformed = transformed.unsqueeze(2)
+        transformed = transformed.expand(-1, -1, transformed.size(1), -1)
+        transposed = transformed.transpose(1, 2)
+        diffs = transformed - transposed
+        squared_diffs = diffs.pow(2)
+        squared_distances = torch.sum(squared_diffs, -1)
 
+        mask = offsets != 0
+        projected_mask = mask.unsqueeze(1).expand(-1, mask.size(-1), -1)
+        projected_mask = projected_mask * projected_mask.transpose(-1, -2)
+
+        gold = []
+        for observation in head_indices:
+            distances = torch.zeros((seq_len, seq_len))
+            for i in range(seq_len):
+                for j in range(i, seq_len):
+                    i_j_distance = self.distance_between_pairs(observation, i, j)
+                    distances[i][j] = i_j_distance
+                    distances[j][i] = i_j_distance
+
+            gold.append(distances)
+
+        gold = torch.stack(gold)
+
+        loss = ((squared_distances - gold) * projected_mask).sum() / mask.nonzero(as_tuple=False).size(0)
+        output_dict = {
+            "loss": loss,
+            "mask": mask,
+            "words": [meta["words"] for meta in metadata],
+            "pos": [meta["pos"] for meta in metadata],
+        }
+        return output_dict
+
+        # mask = words['tokens']['mask']
         # mask = get_text_field_mask(words)
         # mask = torch.ones_like(embedded_text_input)[:, :, 0].bool()
-        # mask = words['tokens']['mask']
-        mask = offsets != 0
 
         predicted_heads, predicted_head_tags, mask, arc_nll, tag_nll = self._parse(
             embedded_text_input, mask, head_tags, head_indices
