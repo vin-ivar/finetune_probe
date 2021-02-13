@@ -13,6 +13,7 @@ from allennlp.models.model import Model
 from allennlp.modules import FeedForward
 from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder, Embedding, InputVariationalDropout
 from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
+from allennlp.modules.matrix_attention.matrix_attention import MatrixAttention
 from allennlp.nn import InitializerApplicator, Activation
 from allennlp.nn.chu_liu_edmonds import decode_mst
 from allennlp.nn.util import (
@@ -956,9 +957,11 @@ class SimpleAttentionParser(Model):
         # shape (batch_size, sequence_length, arc_representation_dim)
         keys = self._dropout(self.k_ff(encoded_text))
         queries = self._dropout(self.q_ff(encoded_text))
-        d_k = keys.size(-1)
-        attended_arcs = torch.bmm(queries, keys.transpose(-2, -1)) \
-            / math.sqrt(d_k)
+        # d_k = keys.size(-1)
+        # attended_arcs = torch.bmm(queries, keys.transpose(-2, -1)) \
+        #     / math.sqrt(d_k)
+
+        attended_arcs = MatrixAttention(keys, queries)
 
         minus_inf = -1e8
         minus_mask = ~mask * minus_inf
