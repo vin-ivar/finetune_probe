@@ -866,14 +866,9 @@ class SimpleAttentionParser(Model):
         embedded_text_input = self.text_field_embedder(words)
         embedded_text_input = embedded_text_input[:, offsets].diagonal().permute(2, 0, 1)
 
-        if pos_tags is not None and self._pos_tag_embedding is not None:
-            embedded_pos_tags = self._pos_tag_embedding(pos_tags)
-            embedded_text_input = torch.cat([embedded_text_input, embedded_pos_tags], -1)
-        elif self._pos_tag_embedding is not None:
-            raise ConfigurationError("Model uses a POS embedding, but no POS tags were passed.")
-
         # mask = get_text_field_mask(words)
-        mask = torch.ones_like(embedded_text_input)[:, :, 0].bool()
+        # mask = torch.ones_like(embedded_text_input)[:, :, 0].bool()
+        mask = offsets != 0
 
         predicted_heads, predicted_head_tags, mask, arc_nll, tag_nll = self._parse(
             embedded_text_input, mask, head_tags, head_indices
@@ -1109,6 +1104,8 @@ class SimpleAttentionParser(Model):
         if mask is not None:
             minus_mask = ~mask.unsqueeze(2)
             attended_arcs.masked_fill_(minus_mask, -numpy.inf)
+
+        import pdb; pdb.set_trace()
 
         # Compute the heads greedily.
         # shape (batch_size, sequence_length)
