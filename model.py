@@ -13,7 +13,7 @@ from allennlp.models.model import Model
 from allennlp.modules import FeedForward
 from allennlp.modules import Seq2SeqEncoder, TextFieldEmbedder, Embedding, InputVariationalDropout
 from allennlp.modules.matrix_attention.bilinear_matrix_attention import BilinearMatrixAttention
-from allennlp.modules.matrix_attention.matrix_attention import MatrixAttention
+from allennlp.modules.matrix_attention.dot_product_matrix_attention import DotProductMatrixAttention
 from allennlp.nn import InitializerApplicator, Activation
 from allennlp.nn.chu_liu_edmonds import decode_mst
 from allennlp.nn.util import (
@@ -358,8 +358,6 @@ class BiaffineDependencyParser(Model):
         if head_tags is not None:
             head_tags = torch.cat([head_tags.new_zeros(batch_size, 1), head_tags], 1)
         encoded_text = self._dropout(encoded_text)
-
-        import pdb; pdb.set_trace()
 
         # shape (batch_size, sequence_length, arc_representation_dim)
         head_arc_representation = self._dropout(self.head_arc_feedforward(encoded_text))
@@ -777,6 +775,7 @@ class SimpleAttentionParser(Model):
         )
 
         self.q_ff = copy.deepcopy(self.k_ff)
+        self.m_att = DotProductMatrixAttention()
 
         num_labels = self.vocab.get_vocab_size("head_tags")
 
@@ -961,7 +960,7 @@ class SimpleAttentionParser(Model):
         # attended_arcs = torch.bmm(queries, keys.transpose(-2, -1)) \
         #     / math.sqrt(d_k)
 
-        attended_arcs = MatrixAttention(keys, queries)
+        attended_arcs = self.m_att(keys, queries)
 
         minus_inf = -1e8
         minus_mask = ~mask * minus_inf
