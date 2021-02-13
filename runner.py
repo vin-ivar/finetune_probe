@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--config', action='store', default='configs/cpu')
     parser.add_argument('--save', action='store', default='experiments/models/default')
     parser.add_argument('--param_save', action='store')
-    parser.add_argument('--param_freeze', action='store')
+    # parser.add_argument('--freeze', action='store')
     args = parser.parse_args()
 
     import_module_and_submodules("model")
@@ -38,12 +38,11 @@ def main():
     config = Params.from_file(args.config, ext_vars={'train_path': args.train,
                                                      'val_path': args.val,
                                                      'model_name': model_name,
-                                                     'model_size': size,
-                                                     'param_freeze': args.param_freeze})
+                                                     'model_size': size})
+                                                     # 'freeze': args.freeze})
     model = train_model(config, args.save, force=True)
     if args.param_save:
         with open(args.param_save, 'wb') as f:
             pickle.dump(model._params_to_log, f)
-
 
 main()

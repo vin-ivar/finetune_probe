@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
-python3 runner.py --train "$UD/$1/$1-ud-train.conllu" --val "$UD/$1/$1-ud-dev.conllu" \
-                  --config "./configs/gpu" --save "experiments/models/$1.$2" --model $2
+python runner.py \
+       --train ~/Work/ud/ud-treebanks-v2.4/UD_English-EWT/en_ewt-ud-train.100.conllu \
+       --val ~/Work/ud/ud-treebanks-v2.4/UD_English-EWT/en_ewt-ud-dev.100.conllu \
+       --model "bert" --config ./configs/sa_cpu.jsonnet --save shit

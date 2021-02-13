@@ -15,8 +15,7 @@
     "train_data_path": std.extVar("train_path"),
     "validation_data_path": std.extVar("val_path"),
     "model": {
-      "type": "wordpiece_parser",
-      "freeze": std.extVar("freeze"),
+      "type": "simple_attention_parser",
       "text_field_embedder": {
         "token_embedders": {
           "tokens": {
@@ -25,17 +24,8 @@
           },
         },
       },
-      "encoder": {
-        "type": "stacked_bidirectional_lstm",
-        "input_size": std.parseInt(std.extVar("model_size")),
-        "hidden_size": 4,
-        "num_layers": 1,
-        "recurrent_dropout_probability": 0.3,
-        "use_highway": true
-      },
       "use_mst_decoding_for_validation": false,
-      "arc_representation_dim": 5,
-      "tag_representation_dim": 1,
+      "kq_dim": 100,
       "dropout": 0.3,
       "input_dropout": 0.3,
       "initializer": {
@@ -59,7 +49,7 @@
       },
     },
     "trainer": {
-      "num_epochs": 10,
+      "num_epochs": 3,
       "grad_norm": 5.0,
       "patience": 20,
       "cuda_device": -1,
