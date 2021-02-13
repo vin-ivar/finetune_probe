@@ -1105,8 +1105,6 @@ class SimpleAttentionParser(Model):
             minus_mask = ~mask.unsqueeze(2)
             attended_arcs.masked_fill_(minus_mask, -numpy.inf)
 
-        import pdb; pdb.set_trace()
-
         # Compute the heads greedily.
         # shape (batch_size, sequence_length)
         _, heads = attended_arcs.max(dim=2)
