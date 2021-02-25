@@ -78,7 +78,6 @@ class BiaffineDependencyParser(Model):
         self,
         vocab: Vocabulary,
         freeze: str,
-        lca: str,
         text_field_embedder: TextFieldEmbedder,
         tag_representation_dim: int,
         arc_representation_dim: int,
@@ -95,11 +94,7 @@ class BiaffineDependencyParser(Model):
 
         self.text_field_embedder = text_field_embedder
         self.num_heads = 12
-        self.lca = lca
-
         self.step_counter = 0
-        if lca != '':
-            self.writer = tensorboard.SummaryWriter(lca)
 
         encoder_dim = text_field_embedder.get_output_dim()
 
@@ -164,20 +159,6 @@ class BiaffineDependencyParser(Model):
         initializer(self)
 
         params_to_freeze = []
-        # if freeze == 'kq':
-        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-        #                         if 'key' in k or 'query' in k]
-        #
-        # if freeze == 'good':
-        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-        #                         if 'output.dense.weight' in k or 'intermediate.dense.weight' in k
-        #                         or 'value' in k]
-        #
-        # if freeze == 'best':
-        #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
-        #                         if ('output.dense.weight' in k or 'intermediate.dense.weight' in k)
-        #                         and k.split('.')[-4] != 'attention']
-
         def debug_unfrozen(self, p):
             keys = [i[0] for i in p]
             print("\n".join([k for (k, v) in self.named_parameters() if k not in keys]))
@@ -218,8 +199,6 @@ class BiaffineDependencyParser(Model):
         #     params_to_freeze = [(k, v) for (k, v) in self.text_field_embedder.named_parameters()
         #                         if 'output.dense.weight' in k or 'intermediate.dense.weight' in k]
         #
-        if freeze == 'artur':
-            params_to_freeze = [(k, v) for (k, v) in self.named_parameters() if not k.startswith('text_field_embedder')]
         #
         # if freeze == 'key':
         #     params_to_freeze = [(k, v) for (k, v) in text_field_embedder.named_parameters() if 'key' in k]
@@ -269,36 +248,6 @@ class BiaffineDependencyParser(Model):
             return path[-2]
             # return 'attention'
         return 'other'
-
-    def log_lca(self):
-        sum_acc, numel_acc = {}, {}
-        for k, v in self._saved_params.items():
-            component = self.name_map(k)
-            param_dict = dict(self.named_parameters())
-            try:
-                lca = (param_dict[k] - v) * param_dict[k].grad
-            except TypeError:
-                # logger.warning(f'{k} has no gradient; skipping LCA')
-                continue
-
-            total, numel = lca.sum().item(), lca.numel()
-            sum_acc.setdefault(component, []).append(total)
-            numel_acc.setdefault(component, []).append(numel)
-
-        for component in sum_acc.keys():
-            self.writer.add_scalar(f'{component}/sum', sum(sum_acc[component]), self.step_counter)
-            self.writer.add_scalar(f'{component}/numel', sum(numel_acc[component]), self.step_counter)
-
-        self._saved_params = {k: v.data.clone() for k, v in self.named_parameters()
-                              if v.requires_grad and 'LayerNorm' not in k and 'bias' not in k}
-        self.step_counter += 1
-
-        # if 'query' in k or 'key' in k or 'value' in k:
-        #     embed_size = lca.size(0) // self.num_heads
-        #     current = lca.view(self.num_heads, embed_size, -1)
-        #     for n in range(self.num_heads):
-        #         mean, sum, numel = v[n].mean().item(), v[n].sum().item(), v[n].numel()
-        #         self.writer.add_scalar(k + f'_head_{n}/sum', sum, self.step_counter)
 
     @overrides
     def forward(
