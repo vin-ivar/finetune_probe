@@ -3,6 +3,20 @@ import plotly.graph_objects as go
 import pandas as pd
 
 
+def deprel_heatmap(df):
+    languages = df['lang'].unique()
+    layers = ['0', '0-1', '0-2', '0-3']
+    fig = make_subplots(rows=len(languages), cols=1, subplot_titles=languages)
+    for r, language in enumerate(languages):
+        current = df[df['lang'] == language][~df['deprel'].str.contains(':')]
+        current = current.pivot(index='layer', columns='deprel', values='score')
+        fig.add_trace(go.Heatmap(z=current, x=current.columns, y=current.index,
+                                 zmin=0, zmax=100, showlegend=not r, colorscale='Blues'),
+                      row=r+1, col=1)
+
+    fig.show()
+
+
 def component_heatmap(df):
     components = df['lang'].unique()
     layers = ['0', '0-1', '0-2', '0-6', '0-7', '0-10', '0-11']
